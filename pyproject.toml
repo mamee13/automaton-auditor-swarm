@@ -1,0 +1,19 @@
+[project]
+name = "automaton-auditor-swarm"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "docling>=2.74.0",
+    "gitpython>=3.1.46",
+    "httpx>=0.28.1",
+    "langchain>=1.2.10",
+    "langchain-google-genai>=4.2.1",
+    "langchain-openai>=1.1.10",
+    "langgraph>=1.0.9",
+    "pydantic>=2.12.5",
+    "python-dotenv>=1.2.1",
+    "pyyaml>=6.0.3",
+    "rich>=14.3.3",
+]
