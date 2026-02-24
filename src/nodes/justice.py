@@ -10,55 +10,132 @@ model = ChatOpenAI(model="gpt-4o", temperature=0.1)
 parser = PydanticOutputParser(pydantic_object=AuditReport)
 
 CHIEF_JUSTICE_PROMPT = """You are the Chief Justice of the Supreme Court.
-Your goal is to resolve conflicts between the following judicial opinions.
-Construct a Remediation Plan and provide final scores.
+Your goal is to resolve conflicts manually using specific protocols.
+
+Synthesis Rules:
+1. SECURITY OVERRIDE: If the Prosecutor finds a confirmed security flaw
+   (e.g. raw os.system), the score for that category is capped at 3.
+2. EVIDENCE SUPREMACY: If a judge cites evidence that does not exist
+   in the collection, their opinion on that point is disregarded.
+3. TECH LEAD WEIGHT: For "Architecture" and "Efficiency", the Tech Lead's
+   score is the tie-breaker.
+
+Evidence Collection:
+{evidences_summary}
 
 Opinions:
 {opinions}
 
-Provide your opinion as JSON matching schema.
+Provide your synthesis as JSON matching the AuditReport schema.
+Include a 'dissent_summary' explaining why you overruled any judge.
 """
 
 
 def chief_justice_node(state: AgentState) -> Dict[str, Any]:
-    """The synthesis engine: Resolves judicial conflict."""
+    """The synthesis engine: Resolves judicial conflict using Protocol B."""
     print("⚖️ SUPREME COURT: Chief Justice issuing final ruling...")
 
     opinions = state.get("opinions", [])
+    evidences = state.get("evidences", {})
+
+    # Build summaries for context
     opinions_text = ""
     for op in opinions:
-        raw_op = (
-            f"\nJudge: {op.judge}\n"
-            f"Score: {op.score}\n"
-            f"Rationale: {op.argument}\n"
-        )
-        opinions_text += raw_op
+        msg = f"\nJudge: {op.judge}\nScore: {op.score}\nRate: {op.argument}\n"
+        opinions_text += msg
 
+    evidences_summary = ""
+    for cat, evs in evidences.items():
+        ev_list = [f"- {e.goal}: {'Yes' if e.found else 'No'}" for e in evs]
+        evidences_summary += f"\nCategory {cat}:\n" + "\n".join(ev_list)
+
+    print("DEBUG: Creating prompt...")
     prompt = ChatPromptTemplate.from_template(CHIEF_JUSTICE_PROMPT)
+    print("DEBUG: Creating chain...")
     chain = prompt | model | parser
 
-    report = chain.invoke({"opinions": opinions_text})
+    print("DEBUG: Invoking chain...")
+    report = chain.invoke(
+        {"opinions": opinions_text, "evidences_summary": evidences_summary}
+    )
+    print("DEBUG: Chain invoked.")
 
-    # Store raw opinions in report for transparency
+    # ENFORCE DETERMINISTIC PROTOCOL B (Hardcoded override)
+    final_scores = report.dimension_scores
+    for op in opinions:
+        # Rule of Security: os.system or shell=True check
+        if op.judge == "Prosecutor" and (
+            "os.system" in op.argument or "shell=True" in op.argument
+        ):
+            if final_scores.get(op.criterion_id, 5) > 3:
+                print(f"🚨 SECURITY OVERRIDE: Capping {op.criterion_id}.")
+                final_scores[op.criterion_id] = 3
+                report.dissent_summary += (
+                    f" [Security Override: {op.criterion_id} capped at 3 "
+                    "due to vulnerability found by Prosecutor]"
+                )
+
+    report.dimension_scores = final_scores
     report.raw_opinions = opinions
 
     return {"audit_data": report}
 
 
+def _generate_markdown_report(report: AuditReport, repo_url: str) -> str:
+    """Generates a professional Markdown audit report."""
+    md = f"# Audit Report: {repo_url}\n\n"
+    md += f"## ⚖️ Executive Summary\n\n{report.verdict}\n\n"
+
+    md += "## 📊 Criterion Breakdown\n\n"
+    md += "| Criterion | Score | Verdict |\n"
+    md += "| :--- | :--- | :--- |\n"
+    for crit, score in report.dimension_scores.items():
+        v = "✅ PASS" if score >= 4 else "⚠️ WARN" if score == 3 else "❌ FAIL"
+        md += f"| {crit} | {score}/5 | {v} |\n"
+
+    res_hdr = f"\n## 🏛️ Judicial Conflict Res\n\n{report.dissent_summary}\n\n"
+    md += res_hdr
+
+    md += "## 🛠️ Remediation Plan\n\n"
+    md += f"{report.remediation_plan}\n\n"
+
+    md += "## 📂 Raw Evidence (Judicial Opinions)\n\n"
+    for op in report.raw_opinions:
+        md += f"### {op.judge} - {op.criterion_id}\n"
+        md += f"**Score:** {op.score}/5\n\n"
+        md += f"{op.argument}\n\n"
+
+    return md
+
+
 def report_saver(state: AgentState) -> Dict[str, Any]:
-    """Saves the final report to the audit/ directory."""
+    """Saves final report to audit/ folders following challenge structure."""
     report = state.get("audit_data")
     if not report:
         return {}
 
     url = state.get("repo_url", "unknown")
     repo_name = url.split("/")[-1].replace(".git", "")
-    os.makedirs("audit", exist_ok=True)
 
-    filename = f"audit/report_{repo_name}.json"
-    print(f"💾 Saving report to {filename}")
+    # Determine folder based on target (self vs peer)
+    # For now, we default to 'report_onself_generated' if not specified
+    target_folder = "report_onself_generated"
+    if "peer" in url.lower():
+        target_folder = "report_onpeer_generated"
 
-    with open(filename, "w") as f:
+    output_dir = os.path.join("audit", target_folder)
+    os.makedirs(output_dir, exist_ok=True)
+
+    # Save JSON
+    json_path = os.path.join(output_dir, f"report_{repo_name}.json")
+    with open(json_path, "w") as f:
         f.write(report.model_dump_json(indent=2))
 
-    return {"final_report": f"Report saved to {filename}"}
+    # Save Markdown
+    md_content = _generate_markdown_report(report, url)
+    md_path = os.path.join(output_dir, f"report_{repo_name}.md")
+    with open(md_path, "w") as f:
+        f.write(md_content)
+
+    print(f"💾 Report saved to {output_dir}")
+    return {"final_report": f"Report saved to {md_path}"}

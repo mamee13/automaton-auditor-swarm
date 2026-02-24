@@ -40,7 +40,8 @@ The system is strictly separated into two virtual environments due to dependency
 
 ### Layer 3: Supreme Court (Synthesis Engine)
 
-- **Chief Justice**: Deterministic conflict resolution and final verdict.
+- **Chief Justice**: Deterministic conflict resolution (Protocol B) and final verdict synthesis.
+  - _Hardcoded Protocol:_ Security overrides, Fact supremacy, and Weighting (Tech Lead for Architecture).
 
 ---
 
@@ -69,25 +70,26 @@ The system is strictly separated into two virtual environments due to dependency
 
 | Task                                           | Branch                  | Status |
 | :--------------------------------------------- | :---------------------- | :----- |
-| **Parallel Detectives**: Fan-out orchestration | `feat/batch-processing` | [/]    |
-| **Batch Processing**: Loop logic for 3 URLs    | `feat/batch-processing` | [/]    |
-| **Reporting**: Automated `report_saver` node   | `feat/batch-processing` | [ ]    |
-| **Checkpointers**: basic in-memory persistence | `feat/batch-processing` | [ ]    |
+| **Parallel Detectives**: Fan-out orchestration | `feat/batch-processing` | [x]    |
+| **Batch Processing**: Loop logic for 3 URLs    | `feat/batch-processing` | [x]    |
+| **Reporting**: Automated JSON `report_saver`   | `feat/batch-processing` | [x]    |
+| **Checkpointers**: basic in-memory persistence | `feat/batch-processing` | [x]    |
 
-### 🟠 Phase 4: Productionization
+### 🟠 Phase 4: Judicial Synthesis & Reporting
 
-| Task                              | Branch        | Status |
-| :-------------------------------- | :------------ | :----- |
-| Create production `Dockerfile`    | `feat/docker` | [ ]    |
-| Implement `VisionInspector` logic | `feat/vision` | [ ]    |
-| Self-Improvement & Final Cleanup  | `main`        | [ ]    |
+| Task                                     | Branch           | Status |
+| :--------------------------------------- | :--------------- | :----- |
+| Implement **Protocol B** (Justice Nodes) | `feat/reporting` | [/]    |
+| Generate Markdown Reports (Exec Summary) | `feat/reporting` | [/]    |
+| Standardize `audit/` folder hierarchy    | `feat/reporting` | [ ]    |
+| Implement `VisionInspector` logic        | `feat/vision`    | [ ]    |
 
-### 🔴 Phase 5: Verification & Submission
+### 🔴 Phase 5: Productionization & Verification
 
 | Task                              | Branch                  | Status |
 | :-------------------------------- | :---------------------- | :----- |
+| Create production `Dockerfile`    | `feat/docker`           | [ ]    |
 | Run audits on self/peer codebases | `feat/audit-execution`  | [ ]    |
-| Generate Markdown Audit Reports   | `feat/reporting`        | [ ]    |
 | Create `SELF_IMPROVEMENT.md`      | `feat/self-improvement` | [ ]    |
 
 ---

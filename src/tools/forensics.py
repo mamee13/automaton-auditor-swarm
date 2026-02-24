@@ -1,6 +1,8 @@
 import os
 import git
-from typing import Dict, Any
+import base64
+import fitz  # PyMuPDF
+from typing import Dict, Any, List
 from tree_sitter import Language, Parser, Query, QueryCursor
 import tree_sitter_python as tspython
 
@@ -72,6 +74,38 @@ def parse_ast_for_forensics(file_path: str) -> Dict[str, Any]:
         "functions": found_funcs,
         "pydantic_score": 1.0 if has_pydantic else 0.0,
     }
+
+
+def extract_images_from_pdf(pdf_path: str) -> List[Dict[str, Any]]:
+    """
+    Extracts images from a PDF and returns them as base64 strings.
+    """
+    if not os.path.exists(pdf_path):
+        return []
+
+    images = []
+    try:
+        doc = fitz.open(pdf_path)
+        for i in range(len(doc)):
+            for img in doc.get_page_images(i):
+                xref = img[0]
+                base_image = doc.extract_image(xref)
+                image_bytes = base_image["image"]
+
+                # Encode to base64
+                b64 = base64.b64encode(image_bytes).decode("utf-8")
+                images.append(
+                    {
+                        "page": i + 1,
+                        "mime": base_image["ext"],
+                        "base64": b64,
+                    }
+                )
+        doc.close()
+    except Exception as e:
+        print(f"⚠️ Error extracting images: {str(e)}")
+
+    return images
 
 
 def ingest_pdf_content(pdf_path: str) -> Dict[str, Any]:
