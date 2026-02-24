@@ -35,3 +35,20 @@ def test_audit_report_model():
         raw_opinions=[],
     )
     assert report.dimension_scores["code"] == 5
+
+
+def test_agent_state_initialization():
+    state = {
+        "repo_url": "https://github.com/test/repo",
+        "target_path": "/tmp/test",
+        "pdf_path": None,
+        "rubric": {},
+        "evidences": {},
+        "opinions": [],
+        "final_report": None,
+        "audit_data": None,
+        "batch_urls": [],
+        "current_url_index": 0,
+    }
+    assert state["repo_url"] == "https://github.com/test/repo"
+    assert state["current_url_index"] == 0
