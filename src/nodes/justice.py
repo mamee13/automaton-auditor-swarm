@@ -1,3 +1,4 @@
+import os
 from typing import Dict, Any
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
@@ -41,4 +42,23 @@ def chief_justice_node(state: AgentState) -> Dict[str, Any]:
     # Store raw opinions in report for transparency
     report.raw_opinions = opinions
 
-    return {"final_report": report}
+    return {"audit_data": report}
+
+
+def report_saver(state: AgentState) -> Dict[str, Any]:
+    """Saves the final report to the audit/ directory."""
+    report = state.get("audit_data")
+    if not report:
+        return {}
+
+    url = state.get("repo_url", "unknown")
+    repo_name = url.split("/")[-1].replace(".git", "")
+    os.makedirs("audit", exist_ok=True)
+
+    filename = f"audit/report_{repo_name}.json"
+    print(f"💾 Saving report to {filename}")
+
+    with open(filename, "w") as f:
+        f.write(report.model_dump_json(indent=2))
+
+    return {"final_report": f"Report saved to {filename}"}

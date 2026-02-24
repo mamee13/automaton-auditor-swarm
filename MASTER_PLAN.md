@@ -57,29 +57,30 @@ The system is strictly separated into two virtual environments due to dependency
 
 ### 🔵 Phase 2: Core Development
 
-| Task                                                 | Branch                | Status |
-| :--------------------------------------------------- | :-------------------- | :----- |
-| **State & Models**: Define Pydantic models & tests   | `feat/state-models`   | [/]    |
-| **Forensic Tools**: Implement AST & Git tools        | `feat/forensic-tools` | [ ]    |
-| **Layer 1 (Detectives)**: Implement parallel nodes   | `feat/detectives`     | [ ]    |
-| **Layer 2 (Judges)**: Implement 3 personas & prompts | `feat/judges`         | [ ]    |
-| **Layer 3 (Justice)**: ChiefJusticeNode & synthesis  | `feat/justice`        | [ ]    |
+| Task                                                  | Branch                | Status |
+| :---------------------------------------------------- | :-------------------- | :----- |
+| **State & Models**: Define Pydantic models & tests    | `feat/state-models`   | [x]    |
+| **Forensic Tools**: Implement AST & Git tools         | `feat/forensic-tools` | [x]    |
+| **Layer 1 (Detectives)**: Implement nodes (Repo, Doc) | `feat/detectives`     | [x]    |
+| **Layer 2 (Judges)**: Implement 3 personas & prompts  | `feat/judicial-bench` | [x]    |
+| **Layer 3 (Justice)**: ChiefJusticeNode & synthesis   | `feat/judicial-bench` | [x]    |
 
-### 🟡 Phase 3: Orchestration & Wiring
+### 🟡 Phase 3: Advanced Features & Refinement
 
-| Task                                         | Branch                     | Status |
-| :------------------------------------------- | :------------------------- | :----- |
-| Define `StateGraph` with Parallel Fan-Out/In | `feat/graph-orchestration` | [ ]    |
-| Implement structured output enforcement      | `feat/structured-output`   | [ ]    |
-| Setup Git sandboxing using `tempfile`        | `feat/sandbox-git`         | [ ]    |
+| Task                                           | Branch                  | Status |
+| :--------------------------------------------- | :---------------------- | :----- |
+| **Parallel Detectives**: Fan-out orchestration | `feat/batch-processing` | [/]    |
+| **Batch Processing**: Loop logic for 3 URLs    | `feat/batch-processing` | [/]    |
+| **Reporting**: Automated `report_saver` node   | `feat/batch-processing` | [ ]    |
+| **Checkpointers**: basic in-memory persistence | `feat/batch-processing` | [ ]    |
 
-### 🟠 Phase 4: Advanced Features
+### 🟠 Phase 4: Productionization
 
-| Task                                    | Branch                  | Status |
-| :-------------------------------------- | :---------------------- | :----- |
-| Implement Checkpointers for persistence | `feat/checkpointers`    | [ ]    |
-| Implement Batch Processing (3 URLs)     | `feat/batch-processing` | [ ]    |
-| Create production `Dockerfile`          | `feat/docker`           | [ ]    |
+| Task                              | Branch        | Status |
+| :-------------------------------- | :------------ | :----- |
+| Create production `Dockerfile`    | `feat/docker` | [ ]    |
+| Implement `VisionInspector` logic | `feat/vision` | [ ]    |
+| Self-Improvement & Final Cleanup  | `main`        | [ ]    |
 
 ### 🔴 Phase 5: Verification & Submission
 
