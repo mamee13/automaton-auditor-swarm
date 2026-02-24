@@ -19,6 +19,13 @@ Building a hierarchical multi-agent swarm using LangGraph to audit GitHub reposi
 
 ## 🏛️ Digital Courtroom Architecture
 
+### Environment Isolation (Mandatory)
+
+The system is strictly separated into two virtual environments due to dependency constraints (CUDA/Torch vs Orchestration):
+
+1. **Core Environment** (`envs/core`): Runs LangGraph, Judges, Detectives (excluding DocAnalyst).
+2. **Docling Environment** (`envs/docling`): Isolated ML-heavy runtime for parsing PDFs, invoked via subprocess.
+
 ### Layer 1: Detectives (Forensic Sub-Agents)
 
 - **RepoInvestigator**: Code analysis via AST and Git forensic analysis.
@@ -37,38 +44,50 @@ Building a hierarchical multi-agent swarm using LangGraph to audit GitHub reposi
 
 ---
 
-## ✅ Task Checklist
+## ✅ Task Checklist & Branching Strategy
 
-### 1. Planning & Infrastructure
+### 🟢 Phase 1: Planning & Infrastructure
 
-- [ ] Initialize project with `uv` and `pyproject.toml`
-- [ ] Configure environment variables and LangSmith tracing
-- [ ] Implement dynamic `rubric.json` loader
+| Task                                              | Branch               | Status |
+| :------------------------------------------------ | :------------------- | :----- |
+| Initialize project with `uv` and `pyproject.toml` | `main`               | [x]    |
+| Configure environment variables & LangSmith       | `main`               | [x]    |
+| Setup pre-commit hooks                            | `main`               | [x]    |
+| Implement dynamic `rubric.json` loader            | `feat/rubric-loader` | [x]    |
 
-### 2. Core Development
+### 🔵 Phase 2: Core Development
 
-- [ ] **State & Models**: Define Pydantic models for `AgentState`, `Evidence`, `JudicialOpinion`.
-- [ ] **Layer 1 (Detectives)**: Implement parallel nodes for Repo, Doc, and Vision investigators.
-- [ ] **Layer 2 (Judges)**: Implement Prosecutor, Defense, and Tech Lead personas with distinct prompts.
-- [ ] **Layer 3 (Justice)**: Implement `ChiefJusticeNode` with deterministic synthesis.
+| Task                                                 | Branch                | Status |
+| :--------------------------------------------------- | :-------------------- | :----- |
+| **State & Models**: Define Pydantic models & tests   | `feat/state-models`   | [/]    |
+| **Forensic Tools**: Implement AST & Git tools        | `feat/forensic-tools` | [ ]    |
+| **Layer 1 (Detectives)**: Implement parallel nodes   | `feat/detectives`     | [ ]    |
+| **Layer 2 (Judges)**: Implement 3 personas & prompts | `feat/judges`         | [ ]    |
+| **Layer 3 (Justice)**: ChiefJusticeNode & synthesis  | `feat/justice`        | [ ]    |
 
-### 3. Orchestration & Wiring
+### 🟡 Phase 3: Orchestration & Wiring
 
-- [ ] Define LangGraph `StateGraph` with parallel Fan-Out/Fan-In.
-- [ ] Implement structured output enforcement (Pydantic validation).
-- [ ] Setup Git sandboxing using `tempfile`.
+| Task                                         | Branch                     | Status |
+| :------------------------------------------- | :------------------------- | :----- |
+| Define `StateGraph` with Parallel Fan-Out/In | `feat/graph-orchestration` | [ ]    |
+| Implement structured output enforcement      | `feat/structured-output`   | [ ]    |
+| Setup Git sandboxing using `tempfile`        | `feat/sandbox-git`         | [ ]    |
 
-### 4. Advanced Features
+### 🟠 Phase 4: Advanced Features
 
-- [ ] Implement Batch Processing for multiple URLs.
-- [ ] Implement Checkpointers for state persistence.
-- [ ] Create `Dockerfile`.
+| Task                                    | Branch                  | Status |
+| :-------------------------------------- | :---------------------- | :----- |
+| Implement Checkpointers for persistence | `feat/checkpointers`    | [ ]    |
+| Implement Batch Processing (3 URLs)     | `feat/batch-processing` | [ ]    |
+| Create production `Dockerfile`          | `feat/docker`           | [ ]    |
 
-### 5. Verification & Submission
+### 🔴 Phase 5: Verification & Submission
 
-- [ ] Run audits on self/peer codebases.
-- [ ] Generate Markdown Audit Reports.
-- [ ] Create `SELF_IMPROVEMENT.md`.
+| Task                              | Branch                  | Status |
+| :-------------------------------- | :---------------------- | :----- |
+| Run audits on self/peer codebases | `feat/audit-execution`  | [ ]    |
+| Generate Markdown Audit Reports   | `feat/reporting`        | [ ]    |
+| Create `SELF_IMPROVEMENT.md`      | `feat/self-improvement` | [ ]    |
 
 ---
 

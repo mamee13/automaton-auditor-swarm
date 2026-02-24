@@ -4,4 +4,24 @@ version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "docling",
+    "gitpython",
+    "httpx",
+    "langchain",
+    "langchain-google-genai",
+    "langchain-openai",
+    "langgraph",
+    "pydantic",
+    "python-dotenv",
+    "pyyaml",
+    "rich",
+]
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.5.1",
+    "pytest>=9.0.2",
+    "pytest-asyncio>=1.3.0",
+    "pytest-mock>=3.15.1",
+]
