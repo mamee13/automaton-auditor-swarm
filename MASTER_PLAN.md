@@ -88,10 +88,10 @@ The system is strictly separated into two virtual environments due to dependency
 
 | Task                                    | Branch            | Status |
 | :-------------------------------------- | :---------------- | :----- |
-| **EvidenceAggregator**: Sync node logic | `feat/refinement` | [/]    |
-| **Git Sandboxing**: Temporary clones    | `feat/refinement` | [/]    |
-| **Vision Analysis**: Multimodal Logic   | `feat/vision`     | [ ]    |
-| **Rubric Alignment**: Protocol B Refine | `feat/refinement` | [/]    |
+| **EvidenceAggregator**: Sync node logic | `feat/refinement` | [x]    |
+| **Git Sandboxing**: Temporary clones    | `feat/refinement` | [x]    |
+| **Vision Analysis**: Multimodal Logic   | `feat/vision`     | [x]    |
+| **Rubric Alignment**: Protocol B Refine | `feat/refinement` | [x]    |
 | **Production**: production `Dockerfile` | `feat/docker`     | [ ]    |
 
 ### 🔴 Phase 6: Verification & Social Proof
