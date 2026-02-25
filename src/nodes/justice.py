@@ -151,3 +151,17 @@ def evidence_aggregator(state: AgentState) -> Dict[str, Any]:
     ev_count = sum(len(evs) for evs in state.get("evidences", {}).values())
     print(f"📊 EvidenceAggregator: {ev_count} pieces of evidence crystallized.")
     return {}
+
+
+def cleanup_node(state: AgentState) -> Dict[str, Any]:
+    """Ensures temporary forensic sandboxes are cleaned up."""
+    path = state.get("target_path")
+    if path:
+        from src.tools.forensics import cleanup_sandboxed_repo
+
+        success = cleanup_sandboxed_repo(path)
+        if success:
+            print(f"🧹 Cleanup: Removed sandboxed repo at {path}")
+        else:
+            print(f"⚠️ Cleanup: No action needed or failed for {path}")
+    return {"target_path": None}

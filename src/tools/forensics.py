@@ -35,23 +35,38 @@ def analyze_git_history(repo_path: str) -> Dict[str, Any]:
 
 def clone_to_temp_dir(repo_url: str) -> str:
     """
-    Clones a remote repository to a temporary directory for sandboxed analysis.
-    Returns the path to the temporary directory.
+    Clones a remote repository to a temporary directory.
     """
     temp_dir = tempfile.mkdtemp()
     try:
         print(f"📥 Cloning {repo_url} to {temp_dir}...")
         git.Repo.clone_from(repo_url, temp_dir, depth=1)
         return temp_dir
+    except git.exc.GitCommandError as e:
+        shutil.rmtree(temp_dir, ignore_errors=True)
+        msg = f"Git clone failed (check URL/auth): {e.stderr or str(e)}"
+        raise RuntimeError(msg)
     except Exception as e:
         shutil.rmtree(temp_dir, ignore_errors=True)
-        raise RuntimeError(f"Failed to clone repository: {str(e)}")
+        raise RuntimeError(f"Unexpected error during clone: {str(e)}")
+
+
+def cleanup_sandboxed_repo(path: str) -> bool:
+    """
+    Removes a temporary repository directory.
+    """
+    if os.path.exists(path) and "tmp" in path:
+        try:
+            shutil.rmtree(path, ignore_errors=True)
+            return True
+        except Exception:
+            return False
+    return False
 
 
 def parse_ast_for_forensics(file_path: str) -> Dict[str, Any]:
     """
-    Parses a Python file using tree-sitter to find Pydantic models
-    and interesting patterns.
+    Parses a Python file to find specific forensic patterns.
     """
     if not os.path.exists(file_path):
         return {"error": "File not found"}
@@ -60,36 +75,60 @@ def parse_ast_for_forensics(file_path: str) -> Dict[str, Any]:
         content = f.read()
         tree = parser.parse(content)
 
-    # Basic forensic check: count class and function definitions
+    # Queries for deep forensics
     query = Query(
         PY_LANGUAGE,
         """
-    (class_definition (identifier) @class_name)
-    (function_definition (identifier) @func_name)
-    """,
+        ; Classes and Inheritance (Master Thinker)
+        (class_definition
+            (identifier) @class_name
+            superinterfaces: (argument_list (identifier) @base_class)?
+        )
+
+        ; Method Calls (e.g. add_node, add_edge)
+        (call
+            function: (attribute attribute: (identifier) @method_call)
+        )
+
+        ; Decorators
+        (decorator (identifier) @decorator_name)
+        (decorator (call function: (identifier) @decorator_name))
+        """,
     )
 
-    # Execute query using QueryCursor for 0.22+
     cursor = QueryCursor(query)
     captures = cursor.captures(tree.root_node)
 
-    # In tree-sitter 0.25+, captures() returns a Dict[str, List[Node]]
-    found_classes = []
-    found_funcs = []
+    found_classes: list[str] = []
+    found_bases: list[str] = []
+    found_calls: list[str] = []
+    found_decs: list[str] = []
 
     for node in captures.get("class_name", []):
         found_classes.append(node.text.decode("utf8"))
 
-    for node in captures.get("func_name", []):
-        found_funcs.append(node.text.decode("utf8"))
+    for node in captures.get("base_class", []):
+        found_bases.append(node.text.decode("utf8"))
 
-    # Pydantic score: check if any class inherits from BaseModel
-    has_pydantic = "BaseModel" in content.decode("utf8")
+    for node in captures.get("method_call", []):
+        found_calls.append(node.text.decode("utf8"))
+
+    for node in captures.get("decorator_name", []):
+        found_decs.append(node.text.decode("utf8"))
+
+    # Forensic heuristics
+    has_pydantic = "BaseModel" in found_bases
+    is_state_machine = any(
+        c in found_calls for c in ["add_node", "add_edge", "compile"]
+    )
 
     return {
         "classes": found_classes,
-        "functions": found_funcs,
+        "base_classes": found_bases,
+        "method_calls": found_calls,
+        "decorators": found_decs,
         "pydantic_score": 1.0 if has_pydantic else 0.0,
+        "state_machine_score": 1.0 if is_state_machine else 0.0,
     }
 
 

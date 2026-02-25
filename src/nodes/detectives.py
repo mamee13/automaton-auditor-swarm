@@ -8,8 +8,7 @@ from src.tools.forensics import analyze_git_history, parse_ast_for_forensics
 
 def repo_investigator(state: AgentState) -> Dict[str, Any]:
     """
-    Detective node that analyzes local repository structure,
-    AST for forensic patterns, and Git history.
+    Detective node analyzing repository structure and AST patterns.
     """
     repo_url = state.get("repo_url")
     target_path = state.get("target_path")
@@ -20,7 +19,6 @@ def repo_investigator(state: AgentState) -> Dict[str, Any]:
 
         try:
             target_path = clone_to_temp_dir(repo_url)
-            # Update state with target_path for other tools/nodes
         except Exception as e:
             return {
                 "evidences": {
@@ -30,7 +28,7 @@ def repo_investigator(state: AgentState) -> Dict[str, Any]:
                             found=False,
                             content=str(e),
                             location=repo_url,
-                            rationale="Git clone failed.",
+                            rationale=f"Git clone failed: {str(e)}",
                             confidence=1.0,
                         )
                     ]
@@ -43,7 +41,7 @@ def repo_investigator(state: AgentState) -> Dict[str, Any]:
     # Analyze Git
     git_data = analyze_git_history(path)
 
-    # Analyze core files (heuristic)
+    # Analyze core files
     ast_data = {}
     core_files = ["src/state.py", "src/graph.py", "src/utils.py"]
     for f in core_files:
@@ -51,30 +49,42 @@ def repo_investigator(state: AgentState) -> Dict[str, Any]:
         if os.path.exists(full_path):
             ast_data[f] = parse_ast_for_forensics(full_path)
 
+    # Heuristic for forensic engineering quality
+    pyd_scs = [d.get("pydantic_score", 0) for d in ast_data.values()]
+    mch_scs = [d.get("state_machine_score", 0) for d in ast_data.values()]
+    avg_pydantic = sum(pyd_scs) / len(pyd_scs) if pyd_scs else 0
+    avg_machine = sum(mch_scs) / len(mch_scs) if mch_scs else 0
+
     content_dict = {
         "git": git_data,
         "ast": ast_data,
+        "quality_metrics": {
+            "pydantic_density": avg_pydantic,
+            "state_machine_presence": avg_machine,
+        },
     }
 
     evidence = Evidence(
-        goal="Verify production-grade engineering (State models, Sandboxing)",
+        goal="Verify production-grade engineering (StateGraph, Pydantic)",
         found=True if ast_data else False,
-        content=str(content_dict),
-        location="repository root",
-        rationale="Analyzing Git history and AST patterns.",
-        confidence=0.9,
+        content=json.dumps(content_dict, indent=2),
+        location=f"Repo: {repo_url or path}",
+        rationale=(
+            f"Analyzed {len(ast_data)} files. "
+            f"StateGraph score: {avg_machine}, Pydantic score: {avg_pydantic}."
+        ),
+        confidence=0.95,
     )
 
     return {
         "evidences": {"forensic_accuracy_code": [evidence]},
-        "target_path": path,  # Share the cloned path with other nodes
+        "target_path": path,
     }
 
 
 def doc_analyst(state: AgentState) -> Dict[str, Any]:
     """
-    Detective node that parses PDFs by invoking the isolated docling
-    environment via subprocess.
+    Detective node parsing PDFs via isolated docling runner.
     """
     pdf_path = state.get("pdf_path")
     if not pdf_path:
@@ -82,26 +92,39 @@ def doc_analyst(state: AgentState) -> Dict[str, Any]:
 
     print(f"🕵️ DocAnalyst parsing PDF: {pdf_path}")
 
-    # Run the isolated docling runner
     try:
         runner = "runners/run_doc_analyst.py"
+        python_exec = "envs/docling/bin/python"
+        # RAG-lite targets
+        targets = "StateGraph,Pydantic,Sandboxing,Parallel,Forensic"
+
         result = subprocess.run(
-            ["envs/docling/bin/python", runner, pdf_path],
+            [python_exec, runner, pdf_path, targets],
             capture_output=True,
             check=True,
             text=True,
+            timeout=120,
         )
         doc_data = json.loads(result.stdout)
+        status = doc_data.get("status", "failed")
+    except subprocess.TimeoutExpired:
+        doc_data = {"error": "PDF ingestion timed out (120s limit)"}
+        status = "failed"
     except Exception as e:
         doc_data = {"error": f"DocAnalyst subprocess failed: {str(e)}"}
+        status = "failed"
 
     evidence = Evidence(
-        goal="Ingest PDF for forensic verification",
-        found="error" not in doc_data,
-        content=str(doc_data),
+        goal="Ingest PDF for forensic verification (RAG-lite)",
+        found=(status == "success"),
+        content=json.dumps(doc_data, indent=2),
         location=pdf_path,
-        rationale="Invoking isolated docling environment for PDF parsing.",
-        confidence=0.8,
+        rationale=(
+            f"Invoked queryable docling interface. Status: {status}. "
+            f"Found {doc_data.get('metadata', {}).get('relevant_chunks_found', 0)} "  # noqa: E501
+            "relevant chunks for forensic analysis."
+        ),
+        confidence=0.9,
     )
 
     return {"evidences": {"forensic_accuracy_docs": [evidence]}}

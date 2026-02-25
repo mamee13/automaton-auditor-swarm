@@ -11,6 +11,7 @@ from src.nodes.justice import (
     chief_justice_node,
     report_saver,
     evidence_aggregator,
+    cleanup_node,
 )
 from src.nodes.batch import prepare_audit, batch_router
 
@@ -32,6 +33,7 @@ def create_auditor_graph():
 
     workflow.add_node("chief_justice", chief_justice_node)
     workflow.add_node("save_report", report_saver)
+    workflow.add_node("cleanup", cleanup_node)
 
     # Add Edges
     # 0. Entry and Batch Setup
@@ -62,8 +64,12 @@ def create_auditor_graph():
 
     # Conditional edge for Batch Processing
     workflow.add_conditional_edges(
-        "save_report", batch_router, {"continue": "prepare_audit", "end": END}
+        "save_report",
+        batch_router,
+        {"continue": "prepare_audit", "end": "cleanup"},
     )
+
+    workflow.add_edge("cleanup", END)
 
     # 5. Checkpointing
     memory = MemorySaver()

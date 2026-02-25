@@ -1,14 +1,14 @@
 import sys
 import json
 from pathlib import Path
+from typing import Optional
+from docling.document_converter import DocumentConverter
 
 
-# Placeholder for the actual docling ingestion logic
-# In reality, this script is executed by `envs/docling/bin/python`
-def process_pdf(pdf_path: str):
+def process_pdf(pdf_path: str, targets: Optional[list[str]] = None):
     """
     Ingests and processes a PDF file using the docling package.
-    Outputs structured analysis to stdout as JSON.
+    Provides a queryable interface by returning targeted chunks.
     """
     if not Path(pdf_path).exists():
         error_res = {"error": f"PDF file not found at {pdf_path}"}
@@ -16,14 +16,33 @@ def process_pdf(pdf_path: str):
         sys.exit(1)
 
     try:
-        # NOTE: This is where DocumentConverter would occur,
-        # running strictly in the ml-heavy env.
+        converter = DocumentConverter()
+        result = converter.convert(pdf_path)
 
-        # Simulated Output for now:
+        # Export to markdown for chunking
+        content = result.document.export_to_markdown()
+
+        # RAG-lite: Simple keyword-based chunking
+        chunks = content.split("\n\n")
+        relevant_chunks = []
+
+        if targets:
+            for chunk in chunks:
+                if any(t.lower() in chunk.lower() for t in targets):
+                    relevant_chunks.append(chunk)
+        else:
+            # Default to first few chunks if no targets
+            relevant_chunks = chunks[:5]
+
         evidence = {
             "status": "success",
             "file": pdf_path,
-            "text": "Extracted text content...",
+            "query_results": relevant_chunks,
+            "metadata": {
+                "total_chunks": len(chunks),
+                "relevant_chunks_found": len(relevant_chunks),
+                "targets_queried": targets,
+            },
         }
 
         # STRICT RULE: Print exactly one JSON string to stdout
@@ -36,10 +55,11 @@ def process_pdf(pdf_path: str):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        error_msg = {"error": "Usage: python run_doc_analyst.py <pdf_path>"}
-        print(json.dumps(error_msg))
+    if len(sys.argv) < 2:
+        usage = "Usage: python run_doc_analyst.py <pdf> [<targets>]"
+        print(json.dumps({"error": usage}))
         sys.exit(1)
 
-    pdf_path = sys.argv[1]
-    process_pdf(pdf_path)
+    path = sys.argv[1]
+    query_targets = sys.argv[2].split(",") if len(sys.argv) > 2 else None
+    process_pdf(path, query_targets)
