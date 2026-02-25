@@ -2,6 +2,8 @@ import os
 import git
 import base64
 import fitz  # PyMuPDF
+import tempfile
+import shutil
 from typing import Dict, Any, List
 from tree_sitter import Language, Parser, Query, QueryCursor
 import tree_sitter_python as tspython
@@ -29,6 +31,21 @@ def analyze_git_history(repo_path: str) -> Dict[str, Any]:
         }
     except Exception as e:
         return {"error": f"Git analysis failed: {str(e)}"}
+
+
+def clone_to_temp_dir(repo_url: str) -> str:
+    """
+    Clones a remote repository to a temporary directory for sandboxed analysis.
+    Returns the path to the temporary directory.
+    """
+    temp_dir = tempfile.mkdtemp()
+    try:
+        print(f"📥 Cloning {repo_url} to {temp_dir}...")
+        git.Repo.clone_from(repo_url, temp_dir, depth=1)
+        return temp_dir
+    except Exception as e:
+        shutil.rmtree(temp_dir, ignore_errors=True)
+        raise RuntimeError(f"Failed to clone repository: {str(e)}")
 
 
 def parse_ast_for_forensics(file_path: str) -> Dict[str, Any]:

@@ -10,24 +10,26 @@ model = ChatOpenAI(model="gpt-4o", temperature=0.1)
 parser = PydanticOutputParser(pydantic_object=AuditReport)
 
 CHIEF_JUSTICE_PROMPT = """You are the Chief Justice of the Supreme Court.
-Your goal is to resolve conflicts manually using specific protocols.
+Your goal is to synthesize the final verdict using Synthesis protocols.
 
-Synthesis Rules:
-1. SECURITY OVERRIDE: If the Prosecutor finds a confirmed security flaw
-   (e.g. raw os.system), the score for that category is capped at 3.
-2. EVIDENCE SUPREMACY: If a judge cites evidence that does not exist
-   in the collection, their opinion on that point is disregarded.
-3. TECH LEAD WEIGHT: For "Architecture" and "Efficiency", the Tech Lead's
-   score is the tie-breaker.
+Synthesis Rules (Protocol B):
+1. SECURITY OVERRIDE: If the Prosecutor identifies a confirmed security
+   vulnerability (e.g. os.system with unsanitized inputs), the score is
+   capped at 3 regardless of other opinions.
+2. FACT SUPREMACY: If the Defense claims features that RepoInvestigator
+   evidence proves do not exist (Hallucination), the Defense is overruled.
+3. TECH LEAD WEIGHT: Tech Lead's judgment carries the highest weight for
+   technical architecture and maintainability.
+4. DISSENT REQUIREMENT: You MUST summarize why the Prosecutor and
+   Defense disagreed.
 
 Evidence Collection:
 {evidences_summary}
 
-Opinions:
+Opinions to Synthesize:
 {opinions}
 
-Provide your synthesis as JSON matching the AuditReport schema.
-Include a 'dissent_summary' explaining why you overruled any judge.
+Provide your final synthesis as JSON matching the AuditReport schema.
 """
 
 
@@ -139,3 +141,13 @@ def report_saver(state: AgentState) -> Dict[str, Any]:
 
     print(f"💾 Report saved to {output_dir}")
     return {"final_report": f"Report saved to {md_path}"}
+
+
+def evidence_aggregator(state: AgentState) -> Dict[str, Any]:
+    """
+    Synchronization node that formally crystalizes the evidence collected
+    by all detectives before judicial review begins.
+    """
+    ev_count = sum(len(evs) for evs in state.get("evidences", {}).values())
+    print(f"📊 EvidenceAggregator: {ev_count} pieces of evidence crystallized.")
+    return {}
