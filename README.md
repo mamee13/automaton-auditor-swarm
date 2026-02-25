@@ -52,36 +52,41 @@ The **Chief Justice** applies **Protocol B**—a set of deterministic rules to r
 
 ## 🛠️ Installation & Setup
 
-### Prerequisites
+### 📋 Prerequisites
 
-- **Python 3.12+**
-- **uv** (Recommended) or `pip`
-- **OpenAI API Key** (for Judges and Vision)
+To replicate the deterministic environment exactly, ensure the following are installed:
 
-### Environment Setup
+- **Python**: `3.12` or higher (Managed via `uv` or `pyenv`).
+- **uv**: Latest version (The project's deterministic package manager).
+- **Git**: Required for repository forensic cloning.
+- **System Build Tools**: `gcc` / `make` (Required for compiling `tree-sitter` bindings).
+- **OpenAI API Key**: Required for Judicial and Vision nodes.
 
-The project uses two separate environments to avoid dependency conflicts:
+### ⚙️ Environment Setup
 
-1. **Core Environment**:
+Extract the following variables into a `.env` file from the provided template:
+
+```bash
+cp .env.example .env
+# Open .env and fill in your API keys (OPENAI_API_KEY is mandatory)
+```
+
+### 📦 Dependency Management
+
+The project uses two separate, isolated environments to prevent dependency conflicts between LangGraph and ML-heavy libraries:
+
+1. **Install Core Environment** (Orchestration, Judges, Basic Detectives):
 
    ```bash
    uv sync --frozen
    ```
 
-2. **Docling Environment**:
+2. **Install Docling Environment** (PDF Analysis):
    ```bash
+   # Use the --group flag to include docling-specific dependencies
    uv sync --frozen --group docling
    ```
-   _(Note: This is managed automatically by the `DocAnalyst` via subprocess bridges)._
-
-### Configuration
-
-Create a `.env` file from the template:
-
-```bash
-cp .env.example .env
-# Add your OPENAI_API_KEY and LANGSMITH_API_KEY (optional)
-```
+   _Note: The `DocAnalyst` automatically invokes the correct interpreter from `envs/docling` via a subprocess bridge._
 
 ---
 
