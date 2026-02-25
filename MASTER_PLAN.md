@@ -40,6 +40,7 @@ The system is strictly separated into two virtual environments due to dependency
 
 ### Layer 3: Supreme Court (Synthesis Engine)
 
+- **EvidenceAggregator**: [NEW] Synchronization node that collects parallel detective outputs before passing to Judges.
 - **Chief Justice**: Deterministic conflict resolution (Protocol B) and final verdict synthesis.
   - _Hardcoded Protocol:_ Security overrides, Fact supremacy, and Weighting (Tech Lead for Architecture).
 
@@ -77,20 +78,30 @@ The system is strictly separated into two virtual environments due to dependency
 
 ### 🟠 Phase 4: Judicial Synthesis & Reporting
 
-| Task                                     | Branch           | Status |
-| :--------------------------------------- | :--------------- | :----- |
-| Implement **Protocol B** (Justice Nodes) | `feat/reporting` | [/]    |
-| Generate Markdown Reports (Exec Summary) | `feat/reporting` | [/]    |
-| Standardize `audit/` folder hierarchy    | `feat/reporting` | [ ]    |
-| Implement `VisionInspector` logic        | `feat/vision`    | [ ]    |
+| Task                           | Branch | Status |
+| :----------------------------- | :----- | :----- |
+| **Protocol B** (Justice Nodes) | `main` | [x]    |
+| Generate Markdown Reports      | `main` | [x]    |
+| Standardize `audit/` hierarchy | `main` | [x]    |
 
-### 🔴 Phase 5: Productionization & Verification
+### 🟠 Phase 5: Final Engineering & Vision
 
-| Task                              | Branch                  | Status |
-| :-------------------------------- | :---------------------- | :----- |
-| Create production `Dockerfile`    | `feat/docker`           | [ ]    |
-| Run audits on self/peer codebases | `feat/audit-execution`  | [ ]    |
-| Create `SELF_IMPROVEMENT.md`      | `feat/self-improvement` | [ ]    |
+| Task                                    | Branch            | Status |
+| :-------------------------------------- | :---------------- | :----- |
+| **EvidenceAggregator**: Sync node logic | `feat/refinement` | [/]    |
+| **Git Sandboxing**: Temporary clones    | `feat/refinement` | [/]    |
+| **Vision Analysis**: Multimodal Logic   | `feat/vision`     | [ ]    |
+| **Rubric Alignment**: Protocol B Refine | `feat/refinement` | [/]    |
+| **Production**: production `Dockerfile` | `feat/docker`     | [ ]    |
+
+### 🔴 Phase 6: Verification & Social Proof
+
+| Task                             | Branch                  | Status |
+| :------------------------------- | :---------------------- | :----- |
+| Audit Self: swarm/ audit itself  | `feat/audit-execution`  | [ ]    |
+| Audit Peer: Run on external repo | `feat/audit-execution`  | [ ]    |
+| Create `SELF_IMPROVEMENT.md`     | `feat/self-improvement` | [ ]    |
+| Record Loom Video (5 mins)       | `main`                  | [ ]    |
 
 ---
 

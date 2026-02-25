@@ -11,7 +11,33 @@ def repo_investigator(state: AgentState) -> Dict[str, Any]:
     Detective node that analyzes local repository structure,
     AST for forensic patterns, and Git history.
     """
-    path = state.get("target_path", ".")
+    repo_url = state.get("repo_url")
+    target_path = state.get("target_path")
+
+    # If repo_url is provided but target_path is not, clone it
+    if repo_url and not target_path:
+        from src.tools.forensics import clone_to_temp_dir
+
+        try:
+            target_path = clone_to_temp_dir(repo_url)
+            # Update state with target_path for other tools/nodes
+        except Exception as e:
+            return {
+                "evidences": {
+                    "forensic_accuracy_code": [
+                        Evidence(
+                            goal="Clone and analyze repository",
+                            found=False,
+                            content=str(e),
+                            location=repo_url,
+                            rationale="Git clone failed.",
+                            confidence=1.0,
+                        )
+                    ]
+                }
+            }
+
+    path = target_path or "."
     print(f"🕵️ RepoInvestigator scanning: {path}")
 
     # Analyze Git
@@ -39,8 +65,10 @@ def repo_investigator(state: AgentState) -> Dict[str, Any]:
         confidence=0.9,
     )
 
-    # Aggregate into evidences dict
-    return {"evidences": {"forensic_accuracy_code": [evidence]}}
+    return {
+        "evidences": {"forensic_accuracy_code": [evidence]},
+        "target_path": path,  # Share the cloned path with other nodes
+    }
 
 
 def doc_analyst(state: AgentState) -> Dict[str, Any]:
@@ -82,6 +110,68 @@ def doc_analyst(state: AgentState) -> Dict[str, Any]:
 def vision_inspector(state: AgentState) -> Dict[str, Any]:
     """
     Detective node that extracts and analyzes images/diagrams from PDFs.
+    Uses multimodal LLM capabilities.
     """
-    print("🕵️ VisionInspector: Logic pending implementation")
-    return {"evidences": {}}
+    pdf_path = state.get("pdf_path")
+    if not pdf_path:
+        return {"evidences": {}}
+
+    print(f"🕵️ VisionInspector analyzing diagrams in: {pdf_path}")
+
+    from src.tools.forensics import extract_images_from_pdf
+    from langchain_openai import ChatOpenAI
+    from langchain_core.messages import HumanMessage
+
+    images = extract_images_from_pdf(pdf_path)
+    if not images:
+        print("⚠️ No images found in PDF.")
+        return {"evidences": {}}
+
+    # Initialize Multimodal Model
+    vision_model = ChatOpenAI(model="gpt-4o", temperature=0)
+
+    vision_evidences = []
+    for i, img in enumerate(images[:3]):  # Limit to 3 images for efficiency
+        print(f"👁️ Analyzing Image {i+1} on Page {img['page']}...")
+
+        img_b64 = img["base64"]
+        img_mime = img["mime"]
+        # Use variable to keep line length short for flake8/black
+        image_data_url = f"data:image/{img_mime};base64,{img_b64}"
+
+        prompt = [
+            HumanMessage(
+                content=[
+                    {
+                        "type": "text",
+                        "text": "Analyze this architectural diagram. Is it a "
+                        "LangGraph State Machine diagram? Does it explicitly "
+                        "visualize parallel split (fan-out) for Detectives or "
+                        "Judges? Describe the flow structure "
+                        "(Linear vs Swarm).",
+                    },
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": image_data_url},
+                    },
+                ]
+            )
+        ]
+
+        try:
+            response = vision_model.invoke(prompt)
+            content = response.content
+
+            evidence = Evidence(
+                goal="Verify Swarm Visual flow in diagrams",
+                found=True,
+                content=str(content),
+                location=f"{pdf_path} page {img['page']}",
+                rationale="Multimodal analysis of extracted diagram.",
+                confidence=0.85,
+            )
+            vision_evidences.append(evidence)
+        except Exception as e:
+            print(f"⚠️ vision_inspector error on image {i+1}: {str(e)}")
+
+    return {"evidences": {"vision_accuracy": vision_evidences}}
