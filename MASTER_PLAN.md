@@ -43,6 +43,7 @@ The system is strictly separated into two virtual environments due to dependency
 - **EvidenceAggregator**: [NEW] Synchronization node that collects parallel detective outputs before passing to Judges.
 - **Chief Justice**: Deterministic conflict resolution (Protocol B) and final verdict synthesis.
   - _Hardcoded Protocol:_ Security overrides, Fact supremacy, and Weighting (Tech Lead for Architecture).
+- **Variance Re-evaluation Loop**: [NEW] Conditional routing to force judge re-evaluation if score variance > 2.
 
 ---
 
@@ -86,13 +87,15 @@ The system is strictly separated into two virtual environments due to dependency
 
 ### 🟠 Phase 5: Final Engineering & Vision
 
-| Task                                    | Branch            | Status |
-| :-------------------------------------- | :---------------- | :----- |
-| **EvidenceAggregator**: Sync node logic | `feat/refinement` | [x]    |
-| **Git Sandboxing**: Temporary clones    | `feat/refinement` | [x]    |
-| **Vision Analysis**: Multimodal Logic   | `feat/vision`     | [x]    |
-| **Rubric Alignment**: Protocol B Refine | `feat/refinement` | [x]    |
-| **Production**: production `Dockerfile` | `feat/docker`     | [ ]    |
+| Task                                    | Branch                     | Status |
+| :-------------------------------------- | :------------------------- | :----- |
+| **EvidenceAggregator**: Sync node logic | `feat/refinement`          | [x]    |
+| **Git Sandboxing**: Temporary clones    | `feat/refinement`          | [x]    |
+| **Vision Analysis**: Multimodal Logic   | `feat/vision`              | [x]    |
+| **Rubric Alignment**: Protocol B Refine | `feat/refinement`          | [x]    |
+| **Judge Refinement**: Per-criterion     | `feat/judicial-refinement` | [/]    |
+| **Variance Loop**: Re-evaluation node   | `feat/judicial-refinement` | [/]    |
+| **Production**: production `Dockerfile` | `feat/judicial-refinement` | [/]    |
 
 ### 🔴 Phase 6: Verification & Social Proof
 

@@ -12,6 +12,9 @@ from src.nodes.justice import (
     report_saver,
     evidence_aggregator,
     cleanup_node,
+    variance_check_node,
+    re_evaluation_node,
+    variance_router,
 )
 from src.nodes.batch import prepare_audit, batch_router
 
@@ -34,6 +37,8 @@ def create_auditor_graph():
     workflow.add_node("chief_justice", chief_justice_node)
     workflow.add_node("save_report", report_saver)
     workflow.add_node("cleanup", cleanup_node)
+    workflow.add_node("variance_check", variance_check_node)
+    workflow.add_node("re_evaluation", re_evaluation_node)
 
     # Add Edges
     # 0. Entry and Batch Setup
@@ -54,12 +59,27 @@ def create_auditor_graph():
     workflow.add_edge("evidence_aggregator", "defense")
     workflow.add_edge("evidence_aggregator", "tech_lead")
 
-    # 4. Aggregation (Fan-in) to Chief Justice
-    workflow.add_edge("prosecutor", "chief_justice")
-    workflow.add_edge("defense", "chief_justice")
-    workflow.add_edge("tech_lead", "chief_justice")
+    # 4. Aggregation (Fan-in) to Variance Check
+    workflow.add_edge("prosecutor", "variance_check")
+    workflow.add_edge("defense", "variance_check")
+    workflow.add_edge("tech_lead", "variance_check")
 
-    # 5. Save and Loop/End
+    # 5. Conditional Routing from Variance Check
+    workflow.add_conditional_edges(
+        "variance_check",
+        variance_router,
+        {
+            "re_evaluate": "re_evaluation",
+            "synthesize": "chief_justice",
+        },
+    )
+
+    # 6. Re-evaluation loop back to Judges
+    workflow.add_edge("re_evaluation", "prosecutor")
+    workflow.add_edge("re_evaluation", "defense")
+    workflow.add_edge("re_evaluation", "tech_lead")
+
+    # 7. Final synthesis to Save and Loop/End
     workflow.add_edge("chief_justice", "save_report")
 
     # Conditional edge for Batch Processing

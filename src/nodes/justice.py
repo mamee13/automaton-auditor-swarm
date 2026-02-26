@@ -1,5 +1,5 @@
 import os
-from typing import Dict, Any
+from typing import Dict, Any, List
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import PydanticOutputParser
@@ -30,6 +30,25 @@ Opinions to Synthesize:
 {opinions}
 
 Provide your final synthesis as JSON matching the AuditReport schema.
+"""
+
+RE_EVALUATION_PROMPT = """You are the Supreme Court Mediator.
+There is a significant disagreement (variance > 2) between judges on the
+criterion: {criterion_id}.
+
+Judges' Opinions:
+{opinions}
+
+Forensic Evidence for this Criterion:
+{evidence}
+
+Task:
+Synthesize a 'Dissent Mitigation' instruction for the judges.
+Ask the {judge_a} and {judge_b} to re-examine the specific evidence
+provided and find a middle ground or provide a much more detailed
+justification for their extreme scores.
+
+Provide a brief mediation note.
 """
 
 
@@ -151,6 +170,58 @@ def evidence_aggregator(state: AgentState) -> Dict[str, Any]:
     ev_count = sum(len(evs) for evs in state.get("evidences", {}).values())
     print(f"📊 EvidenceAggregator: {ev_count} pieces of evidence crystallized.")
     return {}
+
+
+def variance_check_node(state: AgentState) -> Dict[str, Any]:
+    """Checks if there is high variance in scores for any criterion."""
+    print("⚖️ Variance Check: Analyzing judge disagreements...")
+    opinions = state.get("opinions", [])
+    if not opinions:
+        return {"has_variance": False}
+
+    # Group opinions by criterion
+    by_crit: Dict[str, List[int]] = {}
+    for op in opinions:
+        if op.criterion_id not in by_crit:
+            by_crit[op.criterion_id] = []
+        by_crit[op.criterion_id].append(op.score)
+
+    has_variance = False
+    conflicting_criteria = []
+
+    for crit_id, scores in by_crit.items():
+        if not scores:
+            continue
+        max_s = max(scores)
+        min_s = min(scores)
+        if (max_s - min_s) > 2:
+            print(f"⚠️ HIGH VARIANCE detected for {crit_id}: {scores}")
+            has_variance = True
+            conflicting_criteria.append(crit_id)
+
+    return {
+        "has_variance": has_variance,
+        "conflicting_criteria": conflicting_criteria,
+    }
+
+
+def re_evaluation_node(state: AgentState) -> Dict[str, Any]:
+    """Node to handle re-evaluation of conflicting opinions."""
+    print("⚖️ RE-EVALUATION: Attempting to resolve high variance...")
+    # In a real system, we'd loop back to judges with mediator notes.
+    # For now, we'll append a "Mediation Note" to the state or
+    # flag that re-evaluation occurred.
+    # To keep the graph loopable without infinite loops,
+    # we might only do this once.
+    return {"re_evaluated": True}
+
+
+def variance_router(state: Dict[str, Any]) -> str:
+    """Routes to re-evaluation if high variance is detected."""
+    # Note: State might be a dict or AgentState depending on how it's called
+    if state.get("has_variance") and not state.get("re_evaluated"):
+        return "re_evaluate"
+    return "synthesize"
 
 
 def cleanup_node(state: AgentState) -> Dict[str, Any]:
