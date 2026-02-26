@@ -73,48 +73,53 @@ def parse_ast_for_forensics(file_path: str) -> Dict[str, Any]:
 
     with open(file_path, "rb") as f:
         content = f.read()
-        tree = parser.parse(content)
 
-    # Queries for deep forensics
-    query = Query(
-        PY_LANGUAGE,
-        """
-        ; Classes and Inheritance (Master Thinker)
-        (class_definition
-            (identifier) @class_name
-            superinterfaces: (argument_list (identifier) @base_class)?
+    tree = parser.parse(content)
+
+    try:
+        # 'superclasses' is the correct field name in the Python grammar
+        query = Query(
+            PY_LANGUAGE,
+            """
+            ; Classes and Inheritance
+            (class_definition
+                name: (identifier) @class_name
+                superclasses: (argument_list (identifier) @base_class)?
+            )
+
+            ; Method Calls (e.g. add_node, add_edge)
+            (call
+                function: (attribute attribute: (identifier) @method_call)
+            )
+
+            ; Decorators
+            (decorator (identifier) @decorator_name)
+            (decorator (call function: (identifier) @decorator_name))
+            """,
         )
 
-        ; Method Calls (e.g. add_node, add_edge)
-        (call
-            function: (attribute attribute: (identifier) @method_call)
-        )
+        cursor = QueryCursor(query)
+        captures = cursor.captures(tree.root_node)
 
-        ; Decorators
-        (decorator (identifier) @decorator_name)
-        (decorator (call function: (identifier) @decorator_name))
-        """,
-    )
+        found_classes: list[str] = []
+        found_bases: list[str] = []
+        found_calls: list[str] = []
+        found_decs: list[str] = []
 
-    cursor = QueryCursor(query)
-    captures = cursor.captures(tree.root_node)
+        for node in captures.get("class_name", []):
+            found_classes.append(node.text.decode("utf8"))
 
-    found_classes: list[str] = []
-    found_bases: list[str] = []
-    found_calls: list[str] = []
-    found_decs: list[str] = []
+        for node in captures.get("base_class", []):
+            found_bases.append(node.text.decode("utf8"))
 
-    for node in captures.get("class_name", []):
-        found_classes.append(node.text.decode("utf8"))
+        for node in captures.get("method_call", []):
+            found_calls.append(node.text.decode("utf8"))
 
-    for node in captures.get("base_class", []):
-        found_bases.append(node.text.decode("utf8"))
+        for node in captures.get("decorator_name", []):
+            found_decs.append(node.text.decode("utf8"))
 
-    for node in captures.get("method_call", []):
-        found_calls.append(node.text.decode("utf8"))
-
-    for node in captures.get("decorator_name", []):
-        found_decs.append(node.text.decode("utf8"))
+    except Exception as e:
+        raise ValueError(str(e)) from e
 
     # Forensic heuristics
     has_pydantic = "BaseModel" in found_bases

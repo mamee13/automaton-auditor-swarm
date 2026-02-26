@@ -61,5 +61,6 @@ class AgentState(TypedDict):
     has_variance: bool
     conflicting_criteria: List[str]
     re_evaluated: bool
+    mediation_notes: Optional[str]
     audit_data: Optional[AuditReport]
     final_report: Optional[str]
