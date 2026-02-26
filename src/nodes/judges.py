@@ -1,14 +1,17 @@
 from typing import Dict, Any
-from langchain_openai import ChatOpenAI
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import PydanticOutputParser
 from src.state import AgentState, JudicialOpinion
 
-# Initialize Models (Assuming API keys are in env)
-# Defaulting to GPT-4o for judicial reasoning
-model = ChatOpenAI(model="gpt-4o", temperature=0)
-
+# Models will be initialized lazily to ensure env vars are loaded
 parser = PydanticOutputParser(pydantic_object=JudicialOpinion)
+
+
+def _get_model():
+    """Lazy initialization of model to ensure env vars are loaded."""
+    return ChatGoogleGenerativeAI(model="gemini-2.0-flash-lite", temperature=0)
+
 
 PROSECUTOR_PROMPT = """You are the Prosecutor for the Digital Courtroom.
 Core Philosophy: "Trust No One. Assume Vibe Coding."
@@ -21,13 +24,19 @@ Prosecutor's Specific Logic: {judicial_logic}
 Forensic Evidences:
 {evidences}
 
+Instructions:
+1. Examine if the implementation matches the claims.
+2. Identify any "Orchestration Fraud" (linear vs parallel).
+3. Look for "Hallucination Liability" (missing structured output).
+4. Be harsh and critical. Cite specific evidence items.
+
 Provide your opinion as JSON matching the JudicialOpinion schema.
-Be harsh, critical, and cite specific evidence IDs.
 """
 
 DEFENSE_PROMPT = """You are the Defense Counsel for the Digital Courtroom.
 Core Philosophy: "Reward Effort and Intent. Look for the 'Spirit of the Law'."
-Objective: Highlight creative workarounds, deep thought, and effort.
+Objective: Highlight creative workarounds, deep thought, and engineering
+effort.
 
 Criterion to Judge: {dimension_name}
 Target Artifact: {target_artifact}
@@ -36,13 +45,22 @@ Defense's Specific Logic: {judicial_logic}
 Forensic Evidences:
 {evidences}
 
+Instructions:
+1. Look for signs of "Engineering Struggle" and iterative
+   improvement in git history.
+2. Highlight where the student attempted sophisticated patterns
+   (e.g., AST parsing, reducers).
+3. Argue for the "Spirit of the Law" if the syntax is slightly off
+   but the intent is clear.
+4. Be optimistic and highlight strengths. Cite specific evidence items.
+
 Provide your opinion as JSON matching the JudicialOpinion schema.
-Be optimistic, highlight strengths, and cite specific evidence IDs.
 """
 
 TECH_LEAD_PROMPT = """You are the Tech Lead for the Automaton Auditor Swarm.
 Core Philosophy: "Does it actually work? Is it maintainable?"
-Objective: Evaluate architectural soundness, code cleanliness, and viability.
+Objective: Evaluate architectural soundness, code cleanliness, and
+pragmatic viability.
 
 Criterion to Judge: {dimension_name}
 Target Artifact: {target_artifact}
@@ -51,8 +69,14 @@ Tech Lead's Specific Logic: {judicial_logic}
 Forensic Evidences:
 {evidences}
 
+Instructions:
+1. Evaluate if state management (Pydantic models, reducers) is
+   strictly implemented.
+2. Check for "Technical Debt" (hardcoded paths, lack of error handling).
+3. Be pragmatic and focused on technical facts. Ignore the "Vibe".
+4. Cite specific evidence items and provide technical remediation advice.
+
 Provide your opinion as JSON matching the JudicialOpinion schema.
-Be pragmatic, focused on technical facts, and cite specific evidence IDs.
 """
 
 
@@ -63,6 +87,7 @@ def _call_judge(
     dimension: Dict[str, Any],
 ) -> JudicialOpinion:
     """Helper to call LLM for a specific persona and rubric dimension."""
+    model = _get_model()  # Lazy initialization
     prompt = ChatPromptTemplate.from_template(persona_prompt)
 
     # Filter evidences relevant to this criterion

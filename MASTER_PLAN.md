@@ -85,7 +85,7 @@ The system is strictly separated into two virtual environments due to dependency
 | Generate Markdown Reports      | `main` | [x]    |
 | Standardize `audit/` hierarchy | `main` | [x]    |
 
-### 🟠 Phase 5: Final Engineering & Vision
+### 🟠 Phase 5: Final Engineering & Refinement
 
 | Task                                    | Branch                     | Status |
 | :-------------------------------------- | :------------------------- | :----- |
@@ -95,16 +95,30 @@ The system is strictly separated into two virtual environments due to dependency
 | **Rubric Alignment**: Protocol B Refine | `feat/refinement`          | [x]    |
 | **Judge Refinement**: Per-criterion     | `feat/judicial-refinement` | [/]    |
 | **Variance Loop**: Re-evaluation node   | `feat/judicial-refinement` | [/]    |
+| **RAG-lite Polish**: Semantic chunking  | `feat/judicial-refinement` | [ ]    |
 | **Production**: production `Dockerfile` | `feat/judicial-refinement` | [/]    |
 
 ### 🔴 Phase 6: Verification & Social Proof
 
 | Task                             | Branch                  | Status |
 | :------------------------------- | :---------------------- | :----- |
-| Audit Self: swarm/ audit itself  | `feat/audit-execution`  | [ ]    |
+| Audit Self: Audit this repo      | `feat/audit-execution`  | [ ]    |
 | Audit Peer: Run on external repo | `feat/audit-execution`  | [ ]    |
+| Verify "Fact Supremacy" Protocol | `feat/audit-execution`  | [ ]    |
 | Create `SELF_IMPROVEMENT.md`     | `feat/self-improvement` | [ ]    |
 | Record Loom Video (5 mins)       | `main`                  | [ ]    |
+
+---
+
+## 🚀 Future Swarm Innovations
+
+### **Internal Affairs Node (The Meta-Auditor)**
+
+Add a node that specifically audits the judges' reasoning to detect "Persona Hallucination" (citing evidence not present in detective reports).
+
+### **Automated Remediation (The Fixer)**
+
+Integrate Week 1's `SpawnSubIntentTool` to automatically apply the "Remediation Plan" via code edits and PR generation.
 
 ---
 

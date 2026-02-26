@@ -4,7 +4,7 @@ from src.state import AgentState
 from src.nodes.detectives import (
     repo_investigator,
     doc_analyst,
-    vision_inspector,
+    screenshot_analyst,
 )
 from src.nodes.judges import prosecutor_node, defense_node, tech_lead_node
 from src.nodes.justice import (
@@ -27,7 +27,7 @@ def create_auditor_graph():
 
     workflow.add_node("repo_investigator", repo_investigator)
     workflow.add_node("doc_analyst", doc_analyst)
-    workflow.add_node("vision_inspector", vision_inspector)
+    workflow.add_node("screenshot_analyst", screenshot_analyst)
     workflow.add_node("evidence_aggregator", evidence_aggregator)
 
     workflow.add_node("prosecutor", prosecutor_node)
@@ -47,12 +47,12 @@ def create_auditor_graph():
     # 1. Parallel Detectives (Fan-out)
     workflow.add_edge("prepare_audit", "repo_investigator")
     workflow.add_edge("prepare_audit", "doc_analyst")
-    workflow.add_edge("prepare_audit", "vision_inspector")
+    workflow.add_edge("prepare_audit", "screenshot_analyst")
 
     # 2. Fan-in to Aggregator
     workflow.add_edge("repo_investigator", "evidence_aggregator")
     workflow.add_edge("doc_analyst", "evidence_aggregator")
-    workflow.add_edge("vision_inspector", "evidence_aggregator")
+    workflow.add_edge("screenshot_analyst", "evidence_aggregator")
 
     # 3. Fan-out to Judges
     workflow.add_edge("evidence_aggregator", "prosecutor")
