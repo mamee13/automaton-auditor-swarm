@@ -29,10 +29,10 @@ def parse_args():
 def main():
     # 1. Load Environment Variables
     load_dotenv()
-    if not os.getenv("OPENAI_API_KEY"):
+    if not os.getenv("GOOGLE_API_KEY"):
         console.print(
-            "[red]Error: OPENAI_API_KEY not found in "
-            "environment or .env file.[/red]",  # noqa: E501
+            "[red]Error: GOOGLE_API_KEY not found in "
+            "environment or .env file.[/red]",
         )
         sys.exit(1)
 

@@ -212,8 +212,12 @@ def variance_check_node(state: AgentState) -> Dict[str, Any]:
 
 
 def re_evaluation_node(state: AgentState) -> Dict[str, Any]:
-    """Node to handle re-evaluation of conflicting opinions."""
-    print("⚖️ RE-EVALUATION: Attempting to resolve high variance...")
+    """
+    Node to handle re-evaluation of conflicting opinions via LLM mediation.
+    Invokes the Mediator model for each criterion with high variance,
+    producing a dissent note that is appended to the audit context.
+    """
+    print("⚖️ RE-EVALUATION: Mediator resolving high variance...")
 
     conflicting = state.get("conflicting_criteria", [])
     if not isinstance(conflicting, list) or not conflicting:
@@ -222,13 +226,27 @@ def re_evaluation_node(state: AgentState) -> Dict[str, Any]:
     opinions = state.get("opinions", [])
     evidences = state.get("evidences", {})
 
+    mediation_notes: List[str] = []
+
     for crit_id in conflicting:
         crit_ops = [op for op in opinions if op.criterion_id == crit_id]
         if len(crit_ops) < 2:
             continue
 
-        # Find the two most disagreeing judges
+        # Identify the two most extreme judges by score
         crit_ops.sort(key=lambda x: x.score)
+        judge_low = crit_ops[0]
+        judge_high = crit_ops[-1]
+
+        # Format their arguments for the mediator
+        opinions_text = (
+            f"Judge: {judge_low.judge}\n"
+            f"Score: {judge_low.score}\n"
+            f"Argument: {judge_low.argument}\n\n"
+            f"Judge: {judge_high.judge}\n"
+            f"Score: {judge_high.score}\n"
+            f"Argument: {judge_high.argument}\n"
+        )
 
         # Filter evidence for this criterion
         crit_evs = ""
@@ -236,16 +254,37 @@ def re_evaluation_node(state: AgentState) -> Dict[str, Any]:
             for ev in ev_list:
                 if ev.goal.lower() in str(crit_id).lower() or str(crit_id) in ev.goal:
                     crit_evs += f"- {ev.dict()}\n"
+        if not crit_evs:
+            crit_evs = "No specific evidence found for this criterion."
 
-        # Note: Mediation occurs here in a full implementation.
+        # Invoke the mediator LLM
         try:
-            print(f"⚖️ Mediator addressing variance in {crit_id}")
-            # Silencing unused variable check while keeping crit_evs for future
-            _ = crit_evs
-        except Exception:
-            pass
+            print(
+                f"⚖️ Mediator: Resolving {crit_id} "
+                f"({judge_low.judge} vs {judge_high.judge})..."
+            )
+            prompt = ChatPromptTemplate.from_template(RE_EVALUATION_PROMPT)
+            model = _get_model()
+            chain = prompt | model
+            response = chain.invoke(
+                {
+                    "criterion_id": crit_id,
+                    "opinions": opinions_text,
+                    "evidence": crit_evs,
+                    "judge_a": judge_low.judge,
+                    "judge_b": judge_high.judge,
+                }
+            )
+            note = getattr(response, "content", str(response))
+            mediation_notes.append(f"[Mediation: {crit_id}]\n{note}\n")
+            print(f"✅ Mediation complete for {crit_id}.")
+        except Exception as e:
+            print(f"❌ Mediator failed for {crit_id}: {e}")
+            mediation_notes.append(f"[Mediation: {crit_id}] Mediator failed: {e}\n")
 
-    return {"re_evaluated": True}
+    # Return the dissent notes so chief justice can incorporate them
+    dissent_text = "\n".join(mediation_notes)
+    return {"re_evaluated": True, "mediation_notes": dissent_text}
 
 
 def variance_router(state: Dict[str, Any]) -> str:
