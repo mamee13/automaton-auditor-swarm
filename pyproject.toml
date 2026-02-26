@@ -5,7 +5,6 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "docling",
     "gitpython",
     "httpx",
     "langchain",
@@ -16,6 +15,11 @@ dependencies = [
     "python-dotenv",
     "pyyaml",
     "rich",
+    "pymupdf",
+    "tree-sitter",
+    "tree-sitter-python",
+    "google-genai>=1.64.0",
+    "langsmith>=0.7.6",
 ]
 
 [dependency-groups]

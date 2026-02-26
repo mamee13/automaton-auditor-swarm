@@ -1,11 +1,11 @@
 import sys
 import json
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
 from docling.document_converter import DocumentConverter
 
 
-def process_pdf(pdf_path: str, targets: Optional[list[str]] = None):
+def process_pdf(pdf_path: str, targets: Optional[List[str]] = None):
     """
     Ingests and processes a PDF file using the docling package.
     Provides a queryable interface by returning targeted chunks.
@@ -22,17 +22,24 @@ def process_pdf(pdf_path: str, targets: Optional[list[str]] = None):
         # Export to markdown for chunking
         content = result.document.export_to_markdown()
 
-        # RAG-lite: Simple keyword-based chunking
-        chunks = content.split("\n\n")
-        relevant_chunks = []
+        # RAG-lite: Sliding window chunking for better context
+        lines = [line.strip() for line in content.split("\n") if line.strip()]
+        window_size = 5
+        chunks = []
+        for i in range(len(lines) - window_size + 1):
+            chunk = "\n".join(lines[i : i + window_size])
+            chunks.append(chunk)
 
+        relevant_chunks: List[str] = []
         if targets:
             for chunk in chunks:
                 if any(t.lower() in chunk.lower() for t in targets):
-                    relevant_chunks.append(chunk)
+                    # Dedup: check if content is already captured
+                    if not relevant_chunks or chunk[:50] not in relevant_chunks[-1]:
+                        relevant_chunks.append(chunk)
         else:
-            # Default to first few chunks if no targets
-            relevant_chunks = chunks[:5]
+            # Default to first few paragraphs
+            relevant_chunks = content.split("\n\n")[:5]
 
         evidence = {
             "status": "success",

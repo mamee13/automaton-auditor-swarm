@@ -26,16 +26,14 @@ def test_batch_flow():
         raw_opinions=[],
     )
 
-    with patch("src.graph.prosecutor_node") as mock_pros, patch(
-        "src.graph.defense_node"
-    ) as mock_def, patch("src.graph.tech_lead_node") as mock_tl, patch(
-        "src.graph.chief_justice_node"
-    ) as mock_cj, patch(
-        "src.graph.doc_analyst"
-    ) as mock_doc, patch(
-        "src.graph.repo_investigator"
-    ) as mock_repo, patch(
-        "src.nodes.justice.os.makedirs"
+    with (
+        patch("src.graph.prosecutor_node") as mock_pros,
+        patch("src.graph.defense_node") as mock_def,
+        patch("src.graph.tech_lead_node") as mock_tl,
+        patch("src.graph.chief_justice_node") as mock_cj,
+        patch("src.graph.doc_analyst") as mock_doc,
+        patch("src.graph.repo_investigator") as mock_repo,
+        patch("src.nodes.justice.os.makedirs"),
     ):
         mock_pros.return_value = {"opinions": [mock_op_obj]}
         mock_def.return_value = {"opinions": [mock_op_obj]}
