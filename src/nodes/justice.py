@@ -1,60 +1,39 @@
 import os
 from typing import Dict, Any, List
-from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.output_parsers import PydanticOutputParser
 from src.state import AgentState, AuditReport
 
 # Models will be initialized lazily to ensure env vars are loaded
-parser = PydanticOutputParser(pydantic_object=AuditReport)
 
 
 def _get_model():
-    """Lazy initialization of model to ensure env vars are loaded."""
-    return ChatGoogleGenerativeAI(model="gemini-2.0-flash-lite", temperature=0.1)
+    """Lazy initialization of model for OpenRouter/DeepSeek-V3."""
+    return ChatOpenAI(
+        model="deepseek/deepseek-chat",
+        openai_api_key=os.getenv("OPENROUTER_API_KEY"),
+        openai_api_base="https://openrouter.ai/api/v1",
+        temperature=0.1,
+        max_tokens=2000,  # Chief Justice needs more for structured JSON output
+    )
 
 
-CHIEF_JUSTICE_PROMPT = """You are the Chief Justice of the Supreme Court.
-Your goal is to synthesize the final verdict using Synthesis protocols.
+CHIEF_JUSTICE_PROMPT = """Chief Justice: Synthesize verdict.
 
-Synthesis Rules (Protocol B):
-1. SECURITY OVERRIDE: If the Prosecutor identifies a confirmed security
-   vulnerability (e.g. os.system with unsanitized inputs), the score is
-   capped at 3 regardless of other opinions.
-2. FACT SUPREMACY: If the Defense claims features that RepoInvestigator
-   evidence proves do not exist (Hallucination), the Defense is overruled.
-3. TECH LEAD WEIGHT: Tech Lead's judgment carries the highest weight for
-   technical architecture and maintainability.
-4. DISSENT REQUIREMENT: You MUST summarize why the Prosecutor and
-   Defense disagreed.
+Rules: 1) Security flaws cap at 3. 2) Facts > Claims.
+3) Tech Lead weighted for arch. 4) Summarize dissent.
 
-Evidence Collection:
-{evidences_summary}
+Opinions: {opinions}
+Evidence: {evidences_summary}
 
-Opinions to Synthesize:
+Return AuditReport JSON."""
+
+RE_EVALUATION_PROMPT = """Mediator: Resolve variance for {criterion_id}.
+
+{judge_a} vs {judge_b}:
 {opinions}
 
-Provide your final synthesis as JSON matching the AuditReport schema.
-"""
-
-RE_EVALUATION_PROMPT = """You are the Supreme Court Mediator.
-There is a significant disagreement (variance > 2) between judges on the
-criterion: {criterion_id}.
-
-Judges' Opinions:
-{opinions}
-
-Forensic Evidence for this Criterion:
-{evidence}
-
-Task:
-Synthesize a 'Dissent Mitigation' instruction for the judges.
-Ask the {judge_a} and {judge_b} to re-examine the specific evidence
-provided and find a middle ground or provide a much more detailed
-justification for their extreme scores.
-
-Provide a brief mediation note.
-"""
+Synthesize mediation note (max 100 words)."""
 
 
 def chief_justice_node(state: AgentState) -> Dict[str, Any]:
@@ -64,28 +43,23 @@ def chief_justice_node(state: AgentState) -> Dict[str, Any]:
     opinions = state.get("opinions", [])
     evidences = state.get("evidences", {})
 
-    # Build summaries for context
+    # Build condensed summaries - only scores and criterion IDs
     opinions_text = ""
     for op in opinions:
-        msg = f"\nJudge: {op.judge}\nScore: {op.score}\nRate: {op.argument}\n"
-        opinions_text += msg
+        opinions_text += f"{op.judge}: {op.criterion_id}={op.score}\n"
 
-    evidences_summary = ""
-    for cat, evs in evidences.items():
-        ev_list = [f"- {e.goal}: {'Yes' if e.found else 'No'}" for e in evs]
-        evidences_summary += f"\nCategory {cat}:\n" + "\n".join(ev_list)
+    evidences_summary = (
+        f"Total evidence pieces: {sum(len(evs) for evs in evidences.values())}"
+    )
 
-    print("DEBUG: Creating prompt...")
     prompt = ChatPromptTemplate.from_template(CHIEF_JUSTICE_PROMPT)
-    print("DEBUG: Creating chain...")
     model = _get_model()  # Lazy initialization
-    chain = prompt | model | parser
+    structured_model = model.with_structured_output(AuditReport)
+    chain = prompt | structured_model
 
-    print("DEBUG: Invoking chain...")
     report = chain.invoke(
         {"opinions": opinions_text, "evidences_summary": evidences_summary}
     )
-    print("DEBUG: Chain invoked.")
 
     # ENFORCE DETERMINISTIC PROTOCOL B (Hardcoded override)
     final_scores = report.dimension_scores
@@ -99,7 +73,7 @@ def chief_justice_node(state: AgentState) -> Dict[str, Any]:
                 final_scores[op.criterion_id] = 3
                 report.dissent_summary += (
                     f" [Security Override: {op.criterion_id} capped at 3 "
-                    "due to vulnerability found by Prosecutor]"
+                    "due to vulnerability]"
                 )
 
     report.dimension_scores = final_scores
@@ -144,10 +118,9 @@ def report_saver(state: AgentState) -> Dict[str, Any]:
     url = state.get("repo_url", "unknown")
     repo_name = url.split("/")[-1].replace(".git", "")
 
-    # Determine folder based on target (self vs peer)
-    target_folder = "report_onself_generated"
-    if "peer" in url.lower():
-        target_folder = "report_onpeer_generated"
+    # Determine folder based on explicit is_self_audit flag
+    is_self = state.get("is_self_audit", False)
+    target_folder = "report_onself_generated" if is_self else "report_onpeer_generated"
 
     output_dir = os.path.join("audit", target_folder)
     os.makedirs(output_dir, exist_ok=True)
@@ -163,7 +136,7 @@ def report_saver(state: AgentState) -> Dict[str, Any]:
     with open(md_path, "w") as f:
         f.write(md_content)
 
-    print(f"💾 Report saved to {output_dir}")
+    print("💾 Report saved successfully to audit/ directory.")
     return {"final_report": f"Report saved to {md_path}"}
 
 
@@ -224,7 +197,6 @@ def re_evaluation_node(state: AgentState) -> Dict[str, Any]:
         return {"re_evaluated": True}
 
     opinions = state.get("opinions", [])
-    evidences = state.get("evidences", {})
 
     mediation_notes: List[str] = []
 
@@ -248,15 +220,6 @@ def re_evaluation_node(state: AgentState) -> Dict[str, Any]:
             f"Argument: {judge_high.argument}\n"
         )
 
-        # Filter evidence for this criterion
-        crit_evs = ""
-        for _, ev_list in evidences.items():
-            for ev in ev_list:
-                if ev.goal.lower() in str(crit_id).lower() or str(crit_id) in ev.goal:
-                    crit_evs += f"- {ev.dict()}\n"
-        if not crit_evs:
-            crit_evs = "No specific evidence found for this criterion."
-
         # Invoke the mediator LLM
         try:
             print(
@@ -264,13 +227,18 @@ def re_evaluation_node(state: AgentState) -> Dict[str, Any]:
                 f"({judge_low.judge} vs {judge_high.judge})..."
             )
             prompt = ChatPromptTemplate.from_template(RE_EVALUATION_PROMPT)
-            model = _get_model()
+            model = ChatOpenAI(
+                model="deepseek/deepseek-chat",
+                openai_api_key=os.getenv("OPENROUTER_API_KEY"),
+                openai_api_base="https://openrouter.ai/api/v1",
+                temperature=0.1,
+                max_tokens=200,  # Mediator only needs brief notes
+            )
             chain = prompt | model
             response = chain.invoke(
                 {
                     "criterion_id": crit_id,
                     "opinions": opinions_text,
-                    "evidence": crit_evs,
                     "judge_a": judge_low.judge,
                     "judge_b": judge_high.judge,
                 }

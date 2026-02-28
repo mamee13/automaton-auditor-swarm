@@ -1,0 +1,26 @@
+{
+  "verdict": "Mixed results",
+  "dimension_scores": {
+    "security": 3
+  },
+  "dissent_summary": "Conflicts found. [Security Override: security capped at 3 due to vulnerability found by Prosecutor]",
+  "remediation_plan": "Fix the security flaw.",
+  "raw_opinions": [
+    {
+      "judge": "Prosecutor",
+      "criterion_id": "security",
+      "score": 1,
+      "argument": "Found raw os.system call without sanitization.",
+      "cited_evidence_ids": [
+        "ev1"
+      ]
+    },
+    {
+      "judge": "Defense",
+      "criterion_id": "security",
+      "score": 5,
+      "argument": "The dev tried their best.",
+      "cited_evidence_ids": []
+    }
+  ]
+}

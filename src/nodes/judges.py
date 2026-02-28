@@ -1,83 +1,47 @@
+import os
 from typing import Dict, Any
-from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.output_parsers import PydanticOutputParser
 from src.state import AgentState, JudicialOpinion
 
 # Models will be initialized lazily to ensure env vars are loaded
-parser = PydanticOutputParser(pydantic_object=JudicialOpinion)
+# Models will be initialized lazily to ensure env vars are loaded
 
 
 def _get_model():
-    """Lazy initialization of model to ensure env vars are loaded."""
-    return ChatGoogleGenerativeAI(model="gemini-2.0-flash-lite", temperature=0)
+    """Lazy initialization of model for OpenRouter/DeepSeek-V3."""
+    return ChatOpenAI(
+        model="deepseek/deepseek-chat",
+        openai_api_key=os.getenv("OPENROUTER_API_KEY"),
+        openai_api_base="https://openrouter.ai/api/v1",
+        temperature=0,
+        max_tokens=500,  # Limit output tokens per judge
+    )
 
 
-PROSECUTOR_PROMPT = """You are the Prosecutor for the Digital Courtroom.
-Core Philosophy: "Trust No One. Assume Vibe Coding."
-Objective: Scrutinize the evidence for gaps and orchestration fraud.
+PROSECUTOR_PROMPT = """Prosecutor: Find gaps/fraud.
+Criterion: {dimension_name} | Target: {target_artifact}
+Logic: {judicial_logic}
 
-Criterion to Judge: {dimension_name}
-Target Artifact: {target_artifact}
-Prosecutor's Specific Logic: {judicial_logic}
+Evidence: {evidences}
 
-Forensic Evidences:
-{evidences}
+Return JudicialOpinion JSON with score 1-5."""
 
-Instructions:
-1. Examine if the implementation matches the claims.
-2. Identify any "Orchestration Fraud" (linear vs parallel).
-3. Look for "Hallucination Liability" (missing structured output).
-4. Be harsh and critical. Cite specific evidence items.
+DEFENSE_PROMPT = """Defense: Highlight effort/intent.
+Criterion: {dimension_name} | Target: {target_artifact}
+Logic: {judicial_logic}
 
-Provide your opinion as JSON matching the JudicialOpinion schema.
-"""
+Evidence: {evidences}
 
-DEFENSE_PROMPT = """You are the Defense Counsel for the Digital Courtroom.
-Core Philosophy: "Reward Effort and Intent. Look for the 'Spirit of the Law'."
-Objective: Highlight creative workarounds, deep thought, and engineering
-effort.
+Return JudicialOpinion JSON with score 1-5."""
 
-Criterion to Judge: {dimension_name}
-Target Artifact: {target_artifact}
-Defense's Specific Logic: {judicial_logic}
+TECH_LEAD_PROMPT = """Tech Lead: Evaluate architecture.
+Criterion: {dimension_name} | Target: {target_artifact}
+Logic: {judicial_logic}
 
-Forensic Evidences:
-{evidences}
+Evidence: {evidences}
 
-Instructions:
-1. Look for signs of "Engineering Struggle" and iterative
-   improvement in git history.
-2. Highlight where the student attempted sophisticated patterns
-   (e.g., AST parsing, reducers).
-3. Argue for the "Spirit of the Law" if the syntax is slightly off
-   but the intent is clear.
-4. Be optimistic and highlight strengths. Cite specific evidence items.
-
-Provide your opinion as JSON matching the JudicialOpinion schema.
-"""
-
-TECH_LEAD_PROMPT = """You are the Tech Lead for the Automaton Auditor Swarm.
-Core Philosophy: "Does it actually work? Is it maintainable?"
-Objective: Evaluate architectural soundness, code cleanliness, and
-pragmatic viability.
-
-Criterion to Judge: {dimension_name}
-Target Artifact: {target_artifact}
-Tech Lead's Specific Logic: {judicial_logic}
-
-Forensic Evidences:
-{evidences}
-
-Instructions:
-1. Evaluate if state management (Pydantic models, reducers) is
-   strictly implemented.
-2. Check for "Technical Debt" (hardcoded paths, lack of error handling).
-3. Be pragmatic and focused on technical facts. Ignore the "Vibe".
-4. Cite specific evidence items and provide technical remediation advice.
-
-Provide your opinion as JSON matching the JudicialOpinion schema.
-"""
+Return JudicialOpinion JSON with score 1-5."""
 
 
 def _call_judge(
@@ -90,18 +54,26 @@ def _call_judge(
     model = _get_model()  # Lazy initialization
     prompt = ChatPromptTemplate.from_template(persona_prompt)
 
-    # Filter evidences relevant to this criterion
-    # If detectives set Evidence.goal to dimension.id, we can filter here.
-    # For now, we'll provide all evidences but label them by category.
+    # Filter and condense evidence
     evidences_text = ""
+    target_art = dimension.get("target_artifact", "").lower()
     for category, evs in state.get("evidences", {}).items():
-        evidences_text += f"\nCategory: {category}\n"
-        for ev in evs:
-            # Pydantic dict() is v1, model_dump() is v2.
-            # Using dict() as per original code.
-            evidences_text += f"- {ev.dict()}\n"
+        # Simple heuristic filtering to save tokens
+        if target_art == "github_repo" and category not in ["architecture", "vision"]:
+            continue
+        if target_art == "pdf_report" and category != "pdf_analysis":
+            continue
 
-    chain = prompt | model | parser
+        evidences_text += f"\n[{category}]\n"
+        for ev in evs:
+            # Minimal evidence: only goal, found status, and location
+            evidences_text += (
+                f"- {ev.goal[:30]}: {'Y' if ev.found else 'N'} @ {ev.location[:40]}\n"
+            )
+
+    # Use structured output for better reliability and rubric compliance
+    structured_model = model.with_structured_output(JudicialOpinion)
+    chain = prompt | structured_model
 
     opinion = chain.invoke(
         {

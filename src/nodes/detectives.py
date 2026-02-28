@@ -1,12 +1,12 @@
 import os
 import sys
 from typing import Dict, Any, List
-from langchain_google_genai import ChatGoogleGenerativeAI
 from src.state import AgentState, Evidence
 from src.tools.forensics import (
     parse_ast_for_forensics,
     analyze_git_history,
 )
+from src.utils import download_remote_pdf
 
 # Keys indicative of good architectural patterns
 GRAPH_METHODS = {"add_node", "add_edge", "compile", "invoke"}
@@ -144,8 +144,6 @@ def repo_investigator(state: AgentState) -> Dict[str, Any]:
         print("🕵️ RepoInvestigator: No valid target_path found. Skipping.")
         return {"evidences": {}}
 
-    print(f"🕵️ RepoInvestigator: Investigating repo at {path}")
-
     # 1. Run AST forensics across all Python files
     ast_evidences = _scan_repo_for_ast_evidence(path)
 
@@ -177,27 +175,58 @@ def doc_analyst(state: AgentState) -> Dict[str, Any]:
     deps isolated.
     """
     pdf_path = state.get("pdf_path")
-    if not pdf_path or not os.path.exists(pdf_path):
+    if not pdf_path:
         print("🕵️ DocAnalyst: No PDF forensic artifact found.")
         return {}
-
-    print(f"🕵️ DocAnalyst: Analyzing forensic PDF {pdf_path}")
 
     import subprocess
     import json
 
-    goals = ["Project Overview", "Task Accomplishment", "Bonus Innovations"]
+    goals = [
+        "Project Overview",
+        "Task Accomplishment",
+        "Bonus Innovations",
+        "Theoretical Depth",
+        "Metacognition",
+        "Dialectical Synthesis",
+    ]
+
+    is_url = pdf_path.startswith(("http://", "https://"))
+    temp_pdf = None
+
+    if is_url:
+        print(f"🕵️ DocAnalyst: Downloading remote PDF from {pdf_path}")
+        try:
+            temp_pdf = download_remote_pdf(pdf_path)
+            actual_path = temp_pdf
+        except Exception as e:
+            print(f"❌ DocAnalyst download failed: {e}")
+            return {}
+    else:
+        actual_path = pdf_path
+
+    if not os.path.exists(actual_path):
+        print(f"🕵️ DocAnalyst: PDF file not found at {actual_path}")
+        return {}
+
     result = subprocess.run(
         [
             sys.executable,
             "runners/run_doc_analyst.py",
-            pdf_path,
+            actual_path,
             ",".join(goals),
         ],
         capture_output=True,
         text=True,
         check=False,
     )
+
+    # Cleanup temp file if it was downloaded
+    if temp_pdf and os.path.exists(temp_pdf):
+        try:
+            os.remove(temp_pdf)
+        except Exception:
+            pass
 
     if result.returncode != 0:
         print(f"❌ DocAnalyst failed: {result.stderr}")
@@ -252,9 +281,7 @@ def screenshot_analyst(state: AgentState) -> Dict[str, Any]:
 
     print(f"🕵️ ScreenshotAnalyst: Found {len(images)} images. Analyzing...")
 
-    vision_model = ChatGoogleGenerativeAI(model="gemini-2.0-flash-lite", temperature=0)
-    _ = vision_model
-
+    # TODO: Implement actual vision analysis when needed
     vision_evidences = [
         Evidence(
             goal="UI Quality & Implementation",
