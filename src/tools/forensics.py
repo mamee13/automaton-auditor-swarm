@@ -65,7 +65,8 @@ def cleanup_sandboxed_repo(path: str) -> bool:
 
 def parse_ast_for_forensics(file_path: str) -> Dict[str, Any]:
     """
-    Parses a Python file to find specific forensic patterns.
+    Parses a Python file to find specific forensic patterns,
+    including detailed AST-level graph orchestration.
     """
     if not os.path.exists(file_path):
         return {"error": "File not found"}
@@ -76,7 +77,6 @@ def parse_ast_for_forensics(file_path: str) -> Dict[str, Any]:
     tree = parser.parse(content)
 
     try:
-        # 'superclasses' is the correct field name in the Python grammar
         query = Query(
             PY_LANGUAGE,
             """
@@ -94,6 +94,24 @@ def parse_ast_for_forensics(file_path: str) -> Dict[str, Any]:
             ; Decorators
             (decorator (identifier) @decorator_name)
             (decorator (call function: (identifier) @decorator_name))
+            ; Explicitly catch add_edge(source, target)
+            (call
+                function: (attribute attribute: (identifier) @graph_call
+                    (#eq? @graph_call "add_edge"))
+                arguments: (argument_list
+                    (string (string_content) @edge_source)
+                    (string (string_content) @edge_target)
+                )
+            )
+
+            ; Catch add_conditional_edges(source, ...)
+            (call
+                function: (attribute attribute: (identifier) @graph_call
+                    (#eq? @graph_call "add_conditional_edges"))
+                arguments: (argument_list
+                    (string (string_content) @cond_edge_source)
+                )
+            )
             """,
         )
 
@@ -104,6 +122,10 @@ def parse_ast_for_forensics(file_path: str) -> Dict[str, Any]:
         found_bases: list[str] = []
         found_calls: list[str] = []
         found_decs: list[str] = []
+
+        # New graph topology tracking
+        graph_edges: list[tuple[str, str]] = []
+        cond_edge_sources: list[str] = []
 
         for node in captures.get("class_name", []):
             found_classes.append(node.text.decode("utf8"))
@@ -117,6 +139,17 @@ def parse_ast_for_forensics(file_path: str) -> Dict[str, Any]:
         for node in captures.get("decorator_name", []):
             found_decs.append(node.text.decode("utf8"))
 
+        edge_sources = captures.get("edge_source", [])
+        edge_targets = captures.get("edge_target", [])
+        if len(edge_sources) == len(edge_targets):
+            for src, tgt in zip(edge_sources, edge_targets):
+                src_txt = src.text.decode("utf8")
+                tgt_txt = tgt.text.decode("utf8")
+                graph_edges.append((src_txt, tgt_txt))
+
+        for node in captures.get("cond_edge_source", []):
+            cond_edge_sources.append(node.text.decode("utf8"))
+
     except Exception as e:
         raise ValueError(str(e)) from e
 
@@ -126,11 +159,30 @@ def parse_ast_for_forensics(file_path: str) -> Dict[str, Any]:
         c in found_calls for c in ["add_node", "add_edge", "compile"]
     )
 
+    # Calculate Fan-Out and Fan-In heuristics based on actual graph topology
+    out_counts: Dict[str, int] = {}
+    in_counts: Dict[str, int] = {}
+
+    for src, tgt in graph_edges:
+        out_counts[src] = out_counts.get(src, 0) + 1
+        in_counts[tgt] = in_counts.get(tgt, 0) + 1
+
+    for src in cond_edge_sources:
+        # A conditional edge implies dynamic fan-out
+        out_counts[src] = out_counts.get(src, 0) + 2
+
+    has_fan_out = any(count > 1 for count in out_counts.values())
+    has_fan_in = any(count > 1 for count in in_counts.values())
+
     return {
         "classes": found_classes,
         "base_classes": found_bases,
         "method_calls": found_calls,
         "decorators": found_decs,
+        "graph_edges": graph_edges,
+        "cond_edge_sources": cond_edge_sources,
+        "has_fan_out": has_fan_out,
+        "has_fan_in": has_fan_in,
         "pydantic_score": 1.0 if has_pydantic else 0.0,
         "state_machine_score": 1.0 if is_state_machine else 0.0,
     }
