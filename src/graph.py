@@ -1,4 +1,5 @@
 from langgraph.checkpoint.memory import MemorySaver
+from langgraph.types import RetryPolicy
 from langgraph.graph import StateGraph, END, START
 from src.state import AgentState
 from src.nodes.detectives import (
@@ -30,15 +31,16 @@ def create_auditor_graph():
     workflow.add_node("screenshot_analyst", screenshot_analyst)
     workflow.add_node("evidence_aggregator", evidence_aggregator)
 
-    workflow.add_node("prosecutor", prosecutor_node)
-    workflow.add_node("defense", defense_node)
-    workflow.add_node("tech_lead", tech_lead_node)
+    retry_policy = RetryPolicy(max_attempts=3)
+    workflow.add_node("prosecutor", prosecutor_node, retry=retry_policy)
+    workflow.add_node("defense", defense_node, retry=retry_policy)
+    workflow.add_node("tech_lead", tech_lead_node, retry=retry_policy)
 
-    workflow.add_node("chief_justice", chief_justice_node)
+    workflow.add_node("chief_justice", chief_justice_node, retry=retry_policy)
     workflow.add_node("save_report", report_saver)
     workflow.add_node("cleanup", cleanup_node)
     workflow.add_node("variance_check", variance_check_node)
-    workflow.add_node("re_evaluation", re_evaluation_node)
+    workflow.add_node("re_evaluation", re_evaluation_node, retry=retry_policy)
 
     # Add Edges
     # 0. Entry and Batch Setup
@@ -74,10 +76,8 @@ def create_auditor_graph():
         },
     )
 
-    # 6. Re-evaluation loop back to Judges
-    workflow.add_edge("re_evaluation", "prosecutor")
-    workflow.add_edge("re_evaluation", "defense")
-    workflow.add_edge("re_evaluation", "tech_lead")
+    # 6. Re-evaluation goes directly to Chief Justice (no judge re-run)
+    workflow.add_edge("re_evaluation", "chief_justice")
 
     # 7. Final synthesis to Save and Loop/End
     workflow.add_edge("chief_justice", "save_report")

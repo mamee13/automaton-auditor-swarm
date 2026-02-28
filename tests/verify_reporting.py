@@ -45,7 +45,7 @@ def test_synthesis_and_reporting():
         raw_opinions=[],
     )
 
-    p1 = patch("src.nodes.justice.model")
+    p1 = patch("src.nodes.justice._get_model")
     p2 = patch("src.nodes.justice.os.makedirs")
     with p1, p2:
         from src.nodes.justice import chief_justice_node, report_saver
@@ -64,6 +64,7 @@ def test_synthesis_and_reporting():
             # Prepare state
             state = {
                 "repo_url": "https://github.com/user/test-repo",
+                "is_self_audit": True,
                 "evidences": {"security": [mock_ev]},
                 "opinions": [mock_op_sec, mock_op_other],
                 "rubric": {"dimensions": []},

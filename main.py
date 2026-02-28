@@ -2,12 +2,15 @@ import argparse
 import os
 import sys
 import uuid
+import warnings
 from dotenv import load_dotenv
 from rich.console import Console
 from rich.panel import Panel
-
 from src.graph import create_auditor_graph
 from src.utils import load_rubric
+
+# Silence Pydantic serialization warnings (internal LangChain/OpenRouter conflict)
+warnings.filterwarnings("ignore", message="Pydantic serialization warnings")
 
 # Initialize Rich console
 console = Console()
@@ -23,16 +26,20 @@ def parse_args():
         "--batch",
         help="Path to a JSON file for batch processing multiple URLs",
     )
+    parser.add_argument(
+        "--onself",
+        action="store_true",
+        help="Run audit on this repository itself",
+    )
     return parser.parse_args()
 
 
 def main():
     # 1. Load Environment Variables
     load_dotenv()
-    if not os.getenv("GOOGLE_API_KEY"):
+    if not os.getenv("OPENROUTER_API_KEY"):
         console.print(
-            "[red]Error: GOOGLE_API_KEY not found in "
-            "environment or .env file.[/red]",
+            "[red]Error: OPENROUTER_API_KEY not found in environment.[/red]",
         )
         sys.exit(1)
 
@@ -43,8 +50,13 @@ def main():
     batch_urls = []
     pdf_path = None
 
-    if args.batch:
+    if args.onself:
+        batch_urls = ["https://github.com/mamee13/automaton-auditor-swarm"]
+        is_self_audit = True
+    elif args.batch:
         import json
+
+        is_self_audit = False
 
         try:
             with open(args.batch, "r") as f:
@@ -60,10 +72,11 @@ def main():
     elif args.repo:
         batch_urls = [args.repo]
         pdf_path = args.report
+        is_self_audit = False
     else:
         console.print(
             "[yellow]Usage: uv run main.py --repo <URL> "
-            "[--report <PDF_PATH>] or --batch <FILE>[/yellow]"
+            "[--report <PDF_PATH>] or --batch <FILE> or --onself[/yellow]"
         )
         sys.exit(0)
 
@@ -81,6 +94,7 @@ def main():
         "current_url_index": 0,
         "rubric": rubric,
         "pdf_path": pdf_path,
+        "is_self_audit": is_self_audit,
         "evidences": {},
         "opinions": [],
         "audit_data": None,

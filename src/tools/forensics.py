@@ -39,7 +39,6 @@ def clone_to_temp_dir(repo_url: str) -> str:
     """
     temp_dir = tempfile.mkdtemp()
     try:
-        print(f"📥 Cloning {repo_url} to {temp_dir}...")
         git.Repo.clone_from(repo_url, temp_dir, depth=1)
         return temp_dir
     except git.exc.GitCommandError as e:

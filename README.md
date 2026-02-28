@@ -92,16 +92,41 @@ The project uses two separate, isolated environments to prevent dependency confl
 
 ## 📖 Usage
 
-Run the auditor via the main entry point:
+### Run a Self-Audit
+
+Use the `--onself` flag to audit your own repository. This will use the default repository link configured in `main.py`.
 
 ```bash
-uv run main.py --repo <GITHUB_URL> --report <PDF_PATH>
+uv run main.py --onself
 ```
 
-For batch processing multiple repositories:
+> [!TIP]
+> **To use your own repository for self-audits:**
+> Update the `batch_urls` assignment in `main.py` (Line 49) with your GitHub URL.
+
+### Run a Peer-Audit
+
+To audit another repository, you must provide the **GitHub Repository URL**. You can optionally provide a **PDF Audit Report** for a more comprehensive forensic comparison.
+
+```bash
+uv run main.py --repo <PEER_GITHUB_URL> [--report <PEER_PDF_REPORT_PATH>]
+```
+
+- **`--repo`**: The link to the repository you wish to audit.
+- **`--report`** (Optional): The path or **URL** (Google Drive, GitHub, etc.) to the peer's PDF audit report. If provided, the system will automatically download and compare the code findings against the claims in the report.
+
+### Batch Processing
+
+Audit multiple repositories sequentially by providing a JSON file with a list of URLs.
 
 ```bash
 uv run main.py --batch config/batch_audits.json
+```
+
+The `config/batch_audits.json` file should look like this:
+
+```json
+["https://github.com/user/repo-one", "https://github.com/user/repo-two"]
 ```
 
 ---
