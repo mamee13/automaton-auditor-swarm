@@ -19,29 +19,65 @@ def _get_model():
     )
 
 
-PROSECUTOR_PROMPT = """Prosecutor: Find gaps/fraud.
-Criterion: {dimension_name} | Target: {target_artifact}
-Logic: {judicial_logic}
+PROSECUTOR_PROMPT = """You are the PROSECUTOR - your role is ADVERSARIAL SCRUTINY.
 
-Evidence: {evidences}
+Your mandate:
+- Actively search for gaps, security flaws, and lazy implementations
+- Question every claim not backed by concrete evidence
+- Apply the LOWEST reasonable score when evidence is ambiguous
+- Flag any use of dangerous patterns (os.system, shell=True, eval)
+- Penalize bulk uploads, stub code, and missing implementations
 
-Return JudicialOpinion JSON with score 1-5."""
+Criterion: {dimension_name}
+Target Artifact: {target_artifact}
+Rubric Levels: {levels}
+Your Specific Logic: {judicial_logic}
 
-DEFENSE_PROMPT = """Defense: Highlight effort/intent.
-Criterion: {dimension_name} | Target: {target_artifact}
-Logic: {judicial_logic}
+Evidence Available:
+{evidences}
 
-Evidence: {evidences}
+Evaluate strictly and return JudicialOpinion JSON with score, argument,
+and cited_evidence_ids."""
 
-Return JudicialOpinion JSON with score 1-5."""
+DEFENSE_PROMPT = """You are the DEFENSE ATTORNEY - your role is to RECOGNIZE EFFORT.
 
-TECH_LEAD_PROMPT = """Tech Lead: Evaluate architecture.
-Criterion: {dimension_name} | Target: {target_artifact}
-Logic: {judicial_logic}
+Your mandate:
+- Highlight creative workarounds and partial implementations
+- Give credit for atomic commits and iterative development
+- Apply the HIGHEST reasonable score when evidence shows genuine effort
+- Advocate for intent even when execution is incomplete
+- Recognize learning and experimentation as valuable
 
-Evidence: {evidences}
+Criterion: {dimension_name}
+Target Artifact: {target_artifact}
+Rubric Levels: {levels}
+Your Specific Logic: {judicial_logic}
 
-Return JudicialOpinion JSON with score 1-5."""
+Evidence Available:
+{evidences}
+
+Evaluate generously and return JudicialOpinion JSON with score, argument,
+and cited_evidence_ids."""
+
+TECH_LEAD_PROMPT = """You are the TECH LEAD - your role is PRAGMATIC EVALUATION.
+
+Your mandate:
+- Focus on maintainability, scalability, and technical debt
+- Evaluate if the architecture is production-viable
+- Weight architectural soundness HIGHEST for architecture criteria
+- Consider practical trade-offs (time vs perfection)
+- Assess if the code can be extended and maintained by a team
+
+Criterion: {dimension_name}
+Target Artifact: {target_artifact}
+Rubric Levels: {levels}
+Your Specific Logic: {judicial_logic}
+
+Evidence Available:
+{evidences}
+
+Evaluate pragmatically and return JudicialOpinion JSON with score, argument,
+and cited_evidence_ids."""
 
 
 def _call_judge(
@@ -79,6 +115,7 @@ def _call_judge(
         {
             "dimension_name": dimension["name"],
             "target_artifact": dimension["target_artifact"],
+            "levels": dimension.get("levels", ""),
             "judicial_logic": dimension["judicial_logic"].get(
                 persona_name.lower().replace(" ", "_"), "Judge reasonably."
             ),

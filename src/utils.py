@@ -59,8 +59,15 @@ def download_remote_pdf(url: str) -> str:
 
         # Check content type if possible
         content_type = response.headers.get("Content-Type", "").lower()
-        if "pdf" not in content_type and not url.lower().endswith(".pdf"):
+        is_pdf = "pdf" in content_type or url.lower().endswith(".pdf")
+
+        # Google Drive direct links often return application/octet-stream
+        if not is_pdf and "drive.google.com" not in url:
             print(f"⚠️ Warning: URL might not be a PDF (Content-Type: {content_type})")
+
+        if "drive.google.com" in url and "octet-stream" in content_type:
+            # Assume it's a PDF if we targeted it as such
+            pass
 
         # Create temporary file
         fd, temp_path = tempfile.mkstemp(suffix=".pdf")

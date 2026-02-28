@@ -1,57 +1,65 @@
 {
   "rubric_metadata": {
-    "rubric_name": "Week 2: The Automaton Auditor Self-Evaluation",
-    "grading_target": "Week 2 Auditor Repository & Architectural Report",
-    "version": "2.0.0"
+    "rubric_name": "Week 2: Automaton Auditor Peer-Evaluation",
+    "grading_target": "Week 2 Auditor Repository & Activity",
+    "version": "3.0.0"
   },
   "dimensions": [
     {
-      "id": "forensic_accuracy_code",
-      "name": "Forensic Accuracy (Codebase)",
+      "id": "dev_progress",
+      "name": "Development Progress",
+      "max_score": 35,
       "target_artifact": "github_repo",
-      "forensic_instruction": "Trace the repository for production-grade engineering. Verify Pydantic State models in 'src/graph.py' or 'src/state.py'. Check 'src/tools/' for sandboxed 'git clone' operations.",
+      "forensic_instruction": "Evaluate how much of the complete Week 2 deliverable is implemented. Required: state definitions, tools, judge nodes, Chief Justice synthesis, graph wiring, infra, and reports. Check git history for narrative.",
       "judicial_logic": {
-        "prosecutor": "If tool execution relies on raw 'os.system' without error handling or sandboxing, charge with 'Security Negligence'. If Pydantic is missing entirely, score max 2.",
-        "defense": "Highlight any creative use of AST parsing to read LangGraph node definitions despite environment constraints.",
-        "tech_lead": "Assess the state reducers. Are 'operator.add' or 'operator.ior' used correctly to prevent data loss during parallel execution?"
-      }
+        "prosecutor": "Score 0 (Absent) if empty. Score 7 (Superficial) if bulk uploads or stubs. Score 21 (Partial) if detective pipeline runs but judicial layer is weak/linear. Score 35 (Complete) only if full end-to-end narrative exists.",
+        "defense": "Advocate for Complete (35) if the pipeline executes end-to-end and all required files are substantive. Highlight atomic commits.",
+        "tech_lead": "Verify Pydantic/TypedDict models, sandboxed tools, structured output in judges, and deterministic synthesis rules."
+      },
+      "levels": "35 pts: Complete System (Atomic commits, full pipeline, all files substantive, self-run report). 21 pts: Partial Pipeline (Core infra exists, detective runs, but judicial/synthesis is incomplete). 7 pts: Superficial (Bulk uploads, stubs, no graph wiring). 0 pts: Absent."
     },
     {
-      "id": "forensic_accuracy_docs",
-      "name": "Forensic Accuracy (Documentation)",
+      "id": "feedback_implementation",
+      "name": "Feedback Implementation",
+      "max_score": 20,
+      "target_artifact": "github_repo",
+      "forensic_instruction": "Trace if the peer acted on feedback from communication, code reviews, or agent-generated reports. Check for commits addressing specific issues.",
+      "judicial_logic": {
+        "prosecutor": "Score 4 (Ignored) if feedback was provided but ignored. Score 12 (Selective) if surface-level fixes but deep structural issues remain.",
+        "defense": "Score 20 (Fully Integrated) if all substantive points addressed or deferred with rationale. Highlight MinMax loop engagement.",
+        "tech_lead": "Score 0 (No Exchange) only if NO feedback occurred. Do not penalize if no channel existed."
+      },
+      "levels": "20 pts: Fully Integrated (Traceable commits addressing all feedback or documented deferral). 12 pts: Selective (Some points addressed, surface-level fixes). 4 pts: Ignored (No changes following feedback). 0 pts: No Exchange (Exclude if no feedback given)."
+    },
+    {
+      "id": "proactive_communication",
+      "name": "Proactive Communication",
+      "max_score": 20,
+      "target_artifact": "github_repo",
+      "forensic_instruction": "Assess initiative in coordination. Check for progress shares, blocker flags, and design discussions throughout the period.",
+      "judicial_logic": {
+        "prosecutor": "Score 4 (Reactive) if they only responded when prompted. Score 0 (Absent) if unreachable.",
+        "defense": "Score 20 (Collaborative Driver) if shared early/often, sought input on trade-offs. Score 12 (Engaged) if initiated a few times.",
+        "tech_lead": "Evaluate if communication enabled useful feedback cycles and bidirectional coordination."
+      },
+      "levels": "20 pts: Collaborative Driver (Proactive, shared work early/often, sought input). 12 pts: Engaged (Initiated contact a few times, responsive). 4 pts: Reactive Only (Responses only, minimal detail). 0 pts: Absent (No communication)."
+    },
+    {
+      "id": "agent_feedback_relevance",
+      "name": "Agent Feedback Relevance",
+      "max_score": 25,
       "target_artifact": "pdf_report",
-      "forensic_instruction": "Scan PDF for theoretical depth. Verify mentions of 'Dialectical Synthesis' and 'Metacognition'. Cross-reference claims made in the PDF (e.g., 'We implemented parallel Judges') with the evidence found by the Code Detective.",
+      "forensic_instruction": "Evaluate YOUR auditor agent's output against the peer repo. Is it forensic-quality? Does it follow the spec? Is it grounded in real evidence?",
       "judicial_logic": {
-        "prosecutor": "If the report claims features that are not present in the code, charge with 'Auditor Hallucination'. Score 1.",
-        "defense": "Identify sections where the trainee demonstrates deep alignment with Multi-Agent System theories.",
-        "tech_lead": "Verify if the architectural notes provide enough detail for a third party to recreate the swarm."
-      }
-    },
-    {
-      "id": "judicial_nuance",
-      "name": "Judicial Nuance & Dialectics",
-      "target_artifact": "github_repo",
-      "forensic_instruction": "Scan 'src/nodes/' or prompt templates. Verify that Prosecutor, Defense, and Tech Lead personas have distinct, conflicting system prompts. Check if the graph forces structured JSON output.",
-      "judicial_logic": {
-        "prosecutor": "If the three judges share 90% of the same prompt text, charge with 'Persona Collusion'. Score max 2. If outputs are free text, charge with 'Hallucination Liability'.",
-        "defense": "Look for specific prompt instructions that force the model to be 'contrarian' or 'forgiving'.",
-        "tech_lead": "Evaluate if the judges successfully map their opinions back to specific rubric criteria IDs."
-      }
-    },
-    {
-      "id": "langgraph_architecture",
-      "name": "LangGraph Orchestration Rigor",
-      "target_artifact": "github_repo",
-      "forensic_instruction": "Analyze the StateGraph definition. Verify the use of parallel branches (fan-out) for Judges and Detectives. Check for conditional edges that handle 'Evidence Missing' or 'Node Failure' scenarios.",
-      "judicial_logic": {
-        "prosecutor": "If the graph is purely linear (A->B->C), charge with 'Orchestration Fraud'. Score 1.",
-        "defense": "Support simpler graph designs if they implement robust 'State' transitions and Pydantic validation at every node.",
-        "tech_lead": "Determine if the fan-in synchronization correctly aggregates lists of evidence before passing them to the judicial bench."
-      }
+        "prosecutor": "Score 5 (Generic Noise) if output is boilerplate or non-specific. Score 0 if it crashed or failed to run. Be honest.",
+        "defense": "Score 25 (Full Forensic Audit) if it follows full pipeline with synthesized verdict and remediation. Score 15 (Targeted) if grounded but shallow.",
+        "tech_lead": "Assess if evidence objects contain real paths/analysis vs. simple file existence checks."
+      },
+      "levels": "25 pts: Full Forensic Audit (Complete pipeline, synthesized verdict, remediation). 15 pts: Targeted Analysis (Grounded in real files but shallow). 5 pts: Generic Noise (Boilerplate/hallucinated, non-specific). 0 pts: No Output."
     }
   ],
   "synthesis_rules": {
-    "security_override": "Confirmed security flaws (e.g., shell injection in git tools) cap total score at 3.",
+    "security_override": "Confirmed security flaws (e.g., raw os.system) cap total forensic score at 40% of max.",
     "fact_supremacy": "Forensic evidence (facts) always overrules Judicial opinion (interpretation).",
     "dissent_requirement": "The Chief Justice must summarize why the Prosecutor and Defense disagreed in the final report."
   }

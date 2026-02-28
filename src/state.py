@@ -24,7 +24,7 @@ class Evidence(BaseModel):
 class JudicialOpinion(BaseModel):
     judge: Literal["Prosecutor", "Defense", "TechLead"]
     criterion_id: str = Field(description="The ID of the rubric dimension being judged")
-    score: int = Field(ge=1, le=5, description="The assigned score (1-5)")
+    score: int = Field(ge=0, le=100, description="The assigned score")
     argument: str = Field(description="The judicial reasoning for the score")
     cited_evidence_ids: List[str] = Field(
         default_factory=list,

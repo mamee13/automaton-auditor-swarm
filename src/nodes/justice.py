@@ -22,6 +22,7 @@ CHIEF_JUSTICE_PROMPT = """Chief Justice: Synthesize verdict.
 
 Rules: 1) Security flaws cap at 3. 2) Facts > Claims.
 3) Tech Lead weighted for arch. 4) Summarize dissent.
+5) Remediation MUST be file-level specific (e.g., "In src/utils.py, line 45...").
 
 Opinions: {opinions}
 Evidence: {evidences_summary}
@@ -48,9 +49,12 @@ def chief_justice_node(state: AgentState) -> Dict[str, Any]:
     for op in opinions:
         opinions_text += f"{op.judge}: {op.criterion_id}={op.score}\n"
 
-    evidences_summary = (
-        f"Total evidence pieces: {sum(len(evs) for evs in evidences.values())}"
-    )
+    detailed_ev_summary = ""
+    for cat, ev_list in evidences.items():
+        detailed_ev_summary += f"\n[{cat}]\n"
+        for ev in ev_list:
+            status = "FOUND" if ev.found else "MISSING"
+            detailed_ev_summary += f"- {ev.goal} ({status}) @ {ev.location}\n"
 
     prompt = ChatPromptTemplate.from_template(CHIEF_JUSTICE_PROMPT)
     model = _get_model()  # Lazy initialization
@@ -58,23 +62,87 @@ def chief_justice_node(state: AgentState) -> Dict[str, Any]:
     chain = prompt | structured_model
 
     report = chain.invoke(
-        {"opinions": opinions_text, "evidences_summary": evidences_summary}
+        {"opinions": opinions_text, "evidences_summary": detailed_ev_summary}
     )
 
     # ENFORCE DETERMINISTIC PROTOCOL B (Hardcoded override)
     final_scores = report.dimension_scores
+    rubric = state.get("rubric", {})
+
+    # RULE 1: Security Override
     for op in opinions:
-        # Rule of Security: os.system or shell=True check
         if op.judge == "Prosecutor" and (
             "os.system" in op.argument or "shell=True" in op.argument
         ):
-            if final_scores.get(op.criterion_id, 5) > 3:
+            dim = next(
+                (d for d in rubric.get("dimensions", []) if d["id"] == op.criterion_id),
+                None,
+            )
+            max_val = dim.get("max_score", 5) if dim else 5
+            cap_val = int(max_val * 0.6)  # Cap at 60%
+            if final_scores.get(op.criterion_id, max_val) > cap_val:
                 print(f"🚨 SECURITY OVERRIDE: Capping {op.criterion_id}.")
-                final_scores[op.criterion_id] = 3
+                final_scores[op.criterion_id] = cap_val
                 report.dissent_summary += (
-                    f" [Security Override: {op.criterion_id} capped at 3 "
+                    f" [Security Override: {op.criterion_id} capped at {cap_val} "
                     "due to vulnerability]"
                 )
+
+    # RULE 2: Fact Supremacy - Evidence overrules unsupported claims
+    evidences_flat = []
+    for ev_list in state.get("evidences", {}).values():
+        evidences_flat.extend(ev_list)
+
+    for op in opinions:
+        dim = next(
+            (d for d in rubric.get("dimensions", []) if d["id"] == op.criterion_id),
+            None,
+        )
+        max_val = dim.get("max_score", 5) if dim else 5
+
+        # Check if judge claims contradict evidence
+        for ev in evidences_flat:
+            goal_match = ev.goal.lower() in op.argument.lower()
+            # Evidence says NOT found but judge scored high
+            if goal_match and not ev.found and op.score > (max_val * 0.5):
+                reduced = int(op.score * 0.7)
+                print(
+                    f"⚖️ FACT SUPREMACY: Evidence contradicts "
+                    f"{op.judge} on {op.criterion_id}"
+                )
+                final_scores[op.criterion_id] = min(
+                    final_scores.get(op.criterion_id, op.score), reduced
+                )
+                report.dissent_summary += (
+                    f" [Fact Override: {op.criterion_id} reduced - "
+                    "evidence contradicts claim]"
+                )
+                break
+
+    # RULE 3: Tech Lead Weight - Architecture criteria get higher weight
+    criterion_opinions: Dict[str, List[Any]] = {}
+    for op in opinions:
+        if op.criterion_id not in criterion_opinions:
+            criterion_opinions[op.criterion_id] = []
+        criterion_opinions[op.criterion_id].append(op)
+
+    for crit_id, crit_ops in criterion_opinions.items():
+        # Check if this is an architecture-related criterion
+        is_arch = any(
+            keyword in crit_id.lower()
+            for keyword in ["architecture", "orchestration", "dev_progress"]
+        )
+
+        if is_arch and len(crit_ops) >= 3:
+            tech_lead_op = next((o for o in crit_ops if o.judge == "TechLead"), None)
+            if tech_lead_op:
+                other_scores = [o.score for o in crit_ops if o.judge != "TechLead"]
+                if other_scores:
+                    avg_others = sum(other_scores) / len(other_scores)
+                    # Weighted average: TechLead 60%, Others 40%
+                    weighted = int(tech_lead_op.score * 0.6 + avg_others * 0.4)
+                    final_scores[crit_id] = weighted
+                    print(f"⚖️ TECH LEAD WEIGHT: {crit_id} weighted to {weighted}")
 
     report.dimension_scores = final_scores
     report.raw_opinions = opinions
@@ -82,7 +150,9 @@ def chief_justice_node(state: AgentState) -> Dict[str, Any]:
     return {"audit_data": report}
 
 
-def _generate_markdown_report(report: AuditReport, repo_url: str) -> str:
+def _generate_markdown_report(
+    report: AuditReport, repo_url: str, rubric: Dict[str, Any]
+) -> str:
     """Generates a professional Markdown audit report."""
     md = f"# Audit Report: {repo_url}\n\n"
     md += f"## ⚖️ Executive Summary\n\n{report.verdict}\n\n"
@@ -91,8 +161,14 @@ def _generate_markdown_report(report: AuditReport, repo_url: str) -> str:
     md += "| Criterion | Score | Verdict |\n"
     md += "| :--- | :--- | :--- |\n"
     for crit, score in report.dimension_scores.items():
-        v = "✅ PASS" if score >= 4 else "⚠️ WARN" if score == 3 else "❌ FAIL"
-        md += f"| {crit} | {score}/5 | {v} |\n"
+        # Get max score from rubric for reporting
+        dim = next((d for d in rubric.get("dimensions", []) if d["id"] == crit), None)
+        max_val = dim.get("max_score", 5) if dim else 5
+
+        # Calculate verdict based on percentage
+        ratio = score / max_val
+        v = "✅ PASS" if ratio >= 0.8 else "⚠️ WARN" if ratio >= 0.6 else "❌ FAIL"
+        md += f"| {crit} | {score}/{max_val} | {v} |\n"
 
     res_hdr = f"\n## 🏛️ Judicial Conflict Res\n\n{report.dissent_summary}\n\n"
     md += res_hdr
@@ -102,8 +178,13 @@ def _generate_markdown_report(report: AuditReport, repo_url: str) -> str:
 
     md += "## 📂 Raw Evidence (Judicial Opinions)\n\n"
     for op in report.raw_opinions:
+        dim = next(
+            (d for d in rubric.get("dimensions", []) if d["id"] == op.criterion_id),
+            None,
+        )
+        max_val = dim.get("max_score", 5) if dim else 5
         md += f"### {op.judge} - {op.criterion_id}\n"
-        md += f"**Score:** {op.score}/5\n\n"
+        md += f"**Score:** {op.score}/{max_val}\n\n"
         md += f"{op.argument}\n\n"
 
     return md
@@ -131,7 +212,7 @@ def report_saver(state: AgentState) -> Dict[str, Any]:
         f.write(report.model_dump_json(indent=2))
 
     # Save Markdown
-    md_content = _generate_markdown_report(report, url)
+    md_content = _generate_markdown_report(report, url, state.get("rubric", {}))
     md_path = os.path.join(output_dir, f"report_{repo_name}.md")
     with open(md_path, "w") as f:
         f.write(md_content)
@@ -173,7 +254,16 @@ def variance_check_node(state: AgentState) -> Dict[str, Any]:
             continue
         max_s = max(scores)
         min_s = min(scores)
-        if (max_s - min_s) > 2:
+
+        # Get max value for this dimension
+        rubric = state.get("rubric", {})
+        dim = next(
+            (d for d in rubric.get("dimensions", []) if d["id"] == crit_id), None
+        )
+        max_val = dim.get("max_score", 5) if dim else 5
+
+        # High variance if difference is > 20% of max score
+        if (max_s - min_s) > (max_val * 0.2):
             print(f"⚠️ HIGH VARIANCE detected for {crit_id}: {scores}")
             has_variance = True
             conflicting_criteria.append(crit_id)
